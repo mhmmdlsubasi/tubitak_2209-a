@@ -330,6 +330,7 @@ class dailyForecast:
         url = "https://servis.mgm.gov.tr/web/tahminler/gunluk?"
         if self.ilce == None:
             params = {'istno': province[self.il]['gunlukTahminIstNo']}
+            self.ilce = self.province[self.il]['ilce']
         else:
             params = {'istno': district[self.il][self.ilce]['gunlukTahminIstNo']}
         headers = {"Origin": "https://www.mgm.gov.tr/"}
@@ -404,55 +405,59 @@ class dailyForecast:
                     im.execute(newRow, row)
                 vt.commit()
                 vt.close()
-                self.graph(dir)
+                for limit in ["Minimum", "Maksimum"]:
+                    self.graph(dir, limit)
     
     def graph(self, dir, limit):
-        if os.path.exists(dir) == False:
-            os.makedirs(dir)
-        vt = sqlite3.connect(dir + 'data.db')
-        im = vt.cursor()
+        try:
+            if os.path.exists(dir) == False:
+                os.makedirs(dir)
+            vt = sqlite3.connect(dir + 'data.db')
+            im = vt.cursor()
 
-        command = """SELECT Tarih, MIN(Sıcaklık), MAX(Sıcaklık) FROM instantData GROUP BY Tarih"""
-        data = im.execute(command).fetchall()
-
-        x = []
-        y = []
-
-        for row in data:
-            x.append(row[0])
-            if limit == "Minimum":
-                y.append(row[1])
-            elif limit == "Maksimum":
-                y.append(row[2])
-
-        for i in [1, 2, 3, 4, 5]:
-            command = f"""SELECT Tarih, MinSıcaklık, MaxSıcaklık FROM dailyForecast WHERE Tarih - YayınTarihi = {i}"""
+            command = """SELECT Tarih, MIN(Sıcaklık), MAX(Sıcaklık) FROM instantData GROUP BY Tarih"""
             data = im.execute(command).fetchall()
 
-            x2 = []
-            y2 = []
-            for row in data:
-                x2.append(row[0])
-                if limit == "Minimum":
-                    y2.append(row[1])
-                elif limit == "Maksimum":
-                    y2.append(row[2])
-                
-            plt.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Sıcaklık")
-            plt.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmin")
-            plt.grid(True)
-            plt.legend(loc=0)
-            plt.title(il + " " + ilce + f" {limit} Sıcaklık")
-            plt.xlabel("Zaman")
-            plt.ylabel("Sıcaklık")
-            plt.xticks(rotation=90)
-            plt.yscale
-            plt.autoscale()
-            plt.savefig(dir + f"{limit}_{i}.png")
-            plt.close()
+            x = []
+            y = []
 
-        vt.commit()
-        vt.close()
+            for row in data:
+                x.append(row[0])
+                if limit == "Minimum":
+                    y.append(row[1])
+                elif limit == "Maksimum":
+                    y.append(row[2])
+
+            for i in [1, 2, 3, 4, 5]:
+                command = f"""SELECT Tarih, MinSıcaklık, MaxSıcaklık FROM dailyForecast WHERE Tarih - YayınTarihi = {i}"""
+                data = im.execute(command).fetchall()
+
+                x2 = []
+                y2 = []
+                for row in data:
+                    x2.append(row[0])
+                    if limit == "Minimum":
+                        y2.append(row[1])
+                    elif limit == "Maksimum":
+                        y2.append(row[2])
+                    
+                plt.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Sıcaklık")
+                plt.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmin")
+                plt.grid(True)
+                plt.legend(loc=0)
+                plt.title(self.il + " " + self.ilce + f" {limit} Sıcaklık")
+                plt.xlabel("Zaman")
+                plt.ylabel("Sıcaklık")
+                plt.xticks(rotation=90)
+                plt.yscale
+                plt.autoscale()
+                plt.savefig(dir + f"{limit}_{i}.png")
+                plt.close()
+
+            vt.commit()
+            vt.close()
+        except:
+            logging.warning(f"{self.il} {self.ilce} {limit} grafiği çizilemedi. Dosya konumu: {dir}")
 
 # Saatlik tahmin verileri için:
 class hourlyForecast:
@@ -473,6 +478,7 @@ class hourlyForecast:
         url = "https://servis.mgm.gov.tr/web/tahminler/saatlik?"
         if self.ilce == None:
             params = {'istno': province[self.il]['saatlikTahminIstNo']}
+            self.ilce = self.province[self.il]['ilce']
         else:
             params = {'istno': district[self.il][self.ilce]['saatlikTahminIstNo']}
         headers = {"Origin": "https://www.mgm.gov.tr/"}
@@ -533,10 +539,10 @@ class hourlyForecast:
                     self.bitisSaat = format(self.veriZamani, "%H:%M:%S")
                     row = [
                         self.il, self.ilce, self.hourlyForecastData['istNo'], self.yayinTarih, self.yayinSaat,
-                        self.tarih, self.baslangicSaat, self.bitisSaat, self.hourlyForecast['hadise'],
-                        self.hourlyForecast['sicaklik'], self.hourlyForecast['hissedilenSicaklik'],
-                        self.hourlyForecast['nem'], self.hourlyForecast['ruzgarYonu'],
-                        self.hourlyForecast['ruzgarHizi'], self.hourlyForecast['maksimumRuzgarHizi']
+                        self.tarih, self.baslangicSaat, self.bitisSaat, hourlyForecast['hadise'],
+                        hourlyForecast['sicaklik'], hourlyForecast['hissedilenSicaklik'],
+                        hourlyForecast['nem'], hourlyForecast['ruzgarYonu'],
+                        hourlyForecast['ruzgarHizi'], hourlyForecast['maksimumRuzgarHizi']
                     ]
                     mark = "?" * len(row)
                     comma = ","
@@ -574,3 +580,9 @@ while True:
     for il, ilce in workspace.items():
         anlik = instant(il, ilce)
         anlik.sql()
+
+        saatlik = hourlyForecast(il, ilce)
+        saatlik.sql()
+
+        günlük = dailyForecast(il, ilce)
+        günlük.sql()

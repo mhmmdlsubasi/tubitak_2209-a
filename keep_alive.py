@@ -32,7 +32,7 @@ def download_file(file_path):
         return "File or directory not found."
 
 def run():
-    app.run(debug=True) # host="0.0.0.0", port=530
+    app.run() # host="0.0.0.0", port=530
 
 def keep_alive():
     t = Thread(target=run)
