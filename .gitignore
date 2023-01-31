@@ -11,5 +11,10 @@
 # Built Visual Studio Code Extensions
 *.vsix
 
+# repl.it
+.replit
+replit.nix
+venv/
+
 # Project File
 work/
