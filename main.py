@@ -448,7 +448,8 @@ class dailyForecast:
                     y.append(row[1])
                 elif limit == "Maksimum":
                     y.append(row[2])
-
+            
+            f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, 1, figsize=(20,20), sharex=True) 
             for i in [1, 2, 3, 4, 5]:
                 command = f"""SELECT Tarih, MinSıcaklık, MaxSıcaklık FROM dailyForecast WHERE Tarih - YayınTarihi = {i}"""
                 data = im.execute(command).fetchall()
@@ -461,20 +462,60 @@ class dailyForecast:
                         y2.append(row[1])
                     elif limit == "Maksimum":
                         y2.append(row[2])
-                    
-                plt.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Sıcaklık")
-                plt.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmin")
-                plt.grid(True)
-                plt.legend(loc=0)
-                plt.title(self.il + " " + self.ilce + f" {limit} Sıcaklık")
-                plt.xlabel("Zaman")
-                plt.ylabel("Sıcaklık")
-                plt.xticks(rotation=90)
-                plt.yscale
-                plt.autoscale()
-                plt.savefig(dir + f"{limit}_{i}.png")
-                plt.close()
+                main_title = f"""
+                {self.il} {self.ilce}
+                {limit} Sıcaklık
+                """
+                plt.suptitle(main_title, fontsize= 20, fontweight='bold')
+                left_title = f"""
+                {i}. Gün {limit} Sıcaklık Tahmini
+                """
+                if i==1:
+                    ax1.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
+                    ax1.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
+                    ax1.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
+                    ax1.set_ylabel("Sıcaklık (°C)")
+                    ax1.grid(True)
+                    ax1.legend()
+                elif i==2:
+                    ax2.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
+                    ax2.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
+                    ax2.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
+                    ax2.set_ylabel("Sıcaklık (°C)")
+                    ax2.grid(True)
+                    ax2.legend()
+                elif i==3:
+                    ax3.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
+                    ax3.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
+                    ax3.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
+                    ax3.set_ylabel("Sıcaklık (°C)")
+                    ax3.grid(True)
+                    ax3.legend()
+                elif i==4:
+                    ax4.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
+                    ax4.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
+                    ax4.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
+                    ax4.set_ylabel("Sıcaklık (°C)")
+                    ax4.grid(True)
+                    ax4.legend()
+                elif i==5:
+                    ax5.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
+                    ax5.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
+                    ax5.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
+                    ax5.set_ylabel("Sıcaklık (°C)")
+                    ax5.grid(True)
+                    ax5.legend()
 
+                plt.xlabel("Zaman")
+
+                locator = mdates.AutoDateLocator()
+                formatter = mdates.ConciseDateFormatter(locator)
+                plt.gca().xaxis.set_major_locator(locator)
+                plt.gca().xaxis.set_major_formatter(formatter)
+                #plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+
+            plt.savefig(dir + f"{limit}.pdf", dpi=300)
+            plt.close()
             vt.commit()
             vt.close()
         except:
