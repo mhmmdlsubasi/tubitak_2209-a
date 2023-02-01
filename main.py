@@ -254,14 +254,14 @@ class instant:
             METEOGRAM
 
             - {str(self.il +' '+self.ilce)} -
-            ({district[self.il][self.ilce]['sondurumIstNo']})
+            ({self.district[self.il][self.ilce]['sondurumIstNo']})
             """
             plt.suptitle(title, fontsize= 20, fontweight='bold')
 
             # Grafik sol başlığı oluşturulur.
             left_title = f"""
-            {district[self.il][self.ilce]['enlem']}N      {self.district[self.il][self.ilce]['boylam']}E
-            Rakım:  {district[self.il][self.ilce]['yukseklik']}m
+            {self.district[self.il][self.ilce]['enlem']}N      {self.district[self.il][self.ilce]['boylam']}E
+            Rakım:  {self.district[self.il][self.ilce]['yukseklik']}m
             """
             ax1.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
             
@@ -348,10 +348,10 @@ class dailyForecast:
         try:
             url = "https://servis.mgm.gov.tr/web/tahminler/gunluk?"
             if self.ilce == None:
-                params = {'istno': province[self.il]['gunlukTahminIstNo']}
+                params = {'istno': self.province[self.il]['gunlukTahminIstNo']}
                 self.ilce = self.province[self.il]['ilce']
             else:
-                params = {'istno': district[self.il][self.ilce]['gunlukTahminIstNo']}
+                params = {'istno': self.district[self.il][self.ilce]['gunlukTahminIstNo']}
             headers = {"Origin": "https://www.mgm.gov.tr/"}
             request = session.get(url, params=params, headers=headers)
             json = request.json()
@@ -549,10 +549,10 @@ class hourlyForecast:
         try:
             url = "https://servis.mgm.gov.tr/web/tahminler/saatlik?"
             if self.ilce == None:
-                params = {'istno': province[self.il]['saatlikTahminIstNo']}
+                params = {'istno': self.province[self.il]['saatlikTahminIstNo']}
                 self.ilce = self.province[self.il]['ilce']
             else:
-                params = {'istno': district[self.il][self.ilce]['saatlikTahminIstNo']}
+                params = {'istno': self.district[self.il][self.ilce]['saatlikTahminIstNo']}
             headers = {"Origin": "https://www.mgm.gov.tr/"}
             request = session.get(url, params=params, headers=headers)
             json = request.json()
