@@ -1,16 +1,16 @@
 from flask import Flask, send_file, render_template, request
 from datetime import datetime
-from threading import Thread
-import function
+import threading
+#import function
 import sqlite3
 import os
+
 app = Flask("")
+
 
 @app.route('/')
 def home():
-    directory = 'work/'
-    files = os.listdir(directory)
-    return render_template('index.html', files=files)
+    return render_template('index.html')
 
 @app.route('/dataset')
 def index():
@@ -44,12 +44,10 @@ def data():
 	data = cursor.fetchall()
 	conn.close()
 
-	function.instant(il, ilce).graph(dir, data)
-	# Verileri grafikte gösterin
-	#t = threading.Thread(target=graph, args=("work/", data))
-	#t.start()
+	#function.instant(il, ilce).graph(dir, data)
 
-	return send_file(dir+"/user/meteogram.pdf", as_attachment=True)
+	#return send_file(dir+"/user/meteogram.pdf", as_attachment=True)
+	return data
 
 @app.route('/download/<path:file_path>')
 def download_file(file_path):
@@ -73,8 +71,8 @@ def download_file(file_path):
         return "File or directory not found."
 
 def run():
-    app.run() # host="0.0.0.0", port=530
+    app.run(host="0.0.0.0", port=8080) # host="0.0.0.0", port=530
 
 def keep_alive():
-    t = Thread(target=run)
+    t = threading.Thread(target=run)
     t.start()
