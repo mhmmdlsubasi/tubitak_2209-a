@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Tübitak 2209-A Projesi
     Proje, Tübitak 2209-A Üniversite Öğrencileri Araştırma Projeleri Desteği Programı kapsamında yürütülmektedir.
 
@@ -12,4 +13,9 @@
 ## Neden Önemli?
 
     Meteoroloji Genel Müdürlüğü, sunduğu meteorolojik tahmin ve gözlem verileri ile tarım, turizm, enerji, savunma vb. birçok sektöre yardımcı olmaktadır. Meteorolojik tahminler her zaman gerçekleşmeyebilir. Bütün meteoroloji uzmanları bunu kabul ederler. Ancak insan aktivitelerinin aksamaması için sunulan tahmin verilerinin tutarlılığı da oldukça önemlidir. Hava tahmininde kalitenin artması, uzmanların görüşleri ve tecrübelerinin de katkısı ile yapılan tahminlerin en çok ne zaman ve nerede hatalı olduğunun tespit edilmesi ile mümkündür. 
-    Altyapının daha tutarlı hale gelmesi, geleceğe yönelik yapılan iklim çalışmalarında, daha tutarlı tahminlerde bulunulabileceği anlamına geliyor. Bu bağlamda proje, erkenden alınması gereken tedbirler hususunda daha doğru tespitlerde bulunulmasına katkı sağlayacaktır
+    Altyapının daha tutarlı hale gelmesi, geleceğe yönelik yapılan iklim çalışmalarında, daha tutarlı tahminlerde bulunulabileceği anlamına geliyor. Bu bağlamda proje, erkenden alınması gereken tedbirler hususunda daha doğru tespitlerde bulunulmasına katkı sağlayacaktır.
+=======
+# WELCOME
+## FIRST HEAD
+deneme asd
+>>>>>>> 88b3336c6b4c8a529a49299e4f21489639e5f547
