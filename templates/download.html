@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dizin İçeriği</title>
+</head>
+<body>
+    <h1>Dizin İçeriği ({{ file_path }})</h1>
+	<table>
+        {% for file, size in files.items() %}
+        <tr>
+            <td><a href=https://amadeus.mhmmdlsubasi.repl.co/download/{{file_path}}/{{ file }}> {{ file }} </a></td>
+            <td>{{ size/1024 }} KB</td>
+        </tr>
+        {% endfor %}
+
+    </table>
+</body>
+</html>
