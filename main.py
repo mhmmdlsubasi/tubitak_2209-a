@@ -1,7 +1,9 @@
 # Gerekli kütüphaneler import edilir.
+from matplotlib.backends.backend_pdf import PdfPages
 from requests.adapters import HTTPAdapter
 from datetime import datetime, timedelta
 from keep_alive import keep_alive
+from windrose import WindroseAxes
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -14,7 +16,7 @@ import sqlite3
 import os
 
 # log dosyası oluşturulur.
-logging.basicConfig(filename='.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logging.basicConfig(filename='.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 
 logging.debug('Debug mesajı')
 logging.info('Info mesajı')
@@ -22,7 +24,7 @@ logging.warning('Warning mesajı')
 logging.error('Error mesajı')
 
 # Grafik çıktılarının otomatik boyutlandırılması için:
-rcParams.update({'figure.autolayout': True})
+#rcParams.update({'figure.autolayout': True})
 
 # API isteğinde çok fazla deneme hatası almamak için:
 session = requests.Session()
@@ -313,18 +315,28 @@ class instant:
             # x ekseni belirteçleri için gerekli ayarlar yapılır.
             locator = mdates.AutoDateLocator()
             formatter = mdates.ConciseDateFormatter(locator)
-            plt.gca().xaxis.set_major_locator(locator)
-            plt.gca().xaxis.set_major_formatter(formatter)
-            plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+            f.gca().xaxis.set_major_locator(locator)
+            f.gca().xaxis.set_major_formatter(formatter)
+            f.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
 
             #plt.tight_layout(h_pad=0)
-            plt.xlabel("Zaman")
+            
+            #f.set_xlabel("Zaman")
             #plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
             #plt.autoscale()
             #plt.gca().yaxis.set_major_locator(ticker.MultipleLocator(5))
+
+            #ax = f.add_subplot(1, 1, 1, projection="windrose") 
             
             # Oluşturulan figür pdf dosyası olarak kaydedilir.
-            plt.savefig(dir + "meteogram.pdf", dpi=300)
+            plt.tight_layout()
+            plt.savefig(dir + "meteogram.pdf", format='pdf', dpi=300)
+            plt.close()
+
+            ax = WindroseAxes.from_ax()
+            ax.bar(rüzgar_yön, rüzgar_hiz)
+            ax.set_legend()
+            plt.savefig(dir + "windrose.pdf", format="pdf", dpi=300)
             plt.close()
         except:
             logging.warning(f"{self.il}/{self.ilce} meteogramı çizilirken bir hata meydana geldi. Dosya konumu: {dir}")
@@ -656,7 +668,7 @@ workspace = {
 }
 
 keep_alive()
-while True:
+while 1:
     for il, ilce in workspace.items():
         anlik = instant(il, ilce)
         anlik.sql()
