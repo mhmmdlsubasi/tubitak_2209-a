@@ -14,7 +14,7 @@ import sqlite3
 import os
 
 # log dosyası oluşturulur.
-logging.basicConfig(filename='.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logging.basicConfig(filename='.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 
 logging.debug('Debug mesajı')
 logging.info('Info mesajı')
