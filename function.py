@@ -1,7 +1,6 @@
 # Gerekli kütüphaneler import edilir.
 from requests.adapters import HTTPAdapter
 from datetime import datetime, timedelta
-from keep_alive import keep_alive
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
