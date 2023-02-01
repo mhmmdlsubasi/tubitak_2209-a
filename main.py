@@ -449,13 +449,20 @@ class dailyForecast:
             y = []
 
             for row in data:
-                x.append(row[0])
+                gün, ay, yıl = row[0].split("/")
+                x.append(datetime(int(yıl), int(ay), int(gün)))
                 if limit == "Minimum":
                     y.append(row[1])
                 elif limit == "Maksimum":
                     y.append(row[2])
             
             f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, 1, figsize=(20,20), sharex=True) 
+            main_title = f"""
+                {self.il} {self.ilce}
+                {limit} Sıcaklık
+                """
+            plt.suptitle(main_title, fontsize= 20, fontweight='bold')
+
             for i in [1, 2, 3, 4, 5]:
                 command = f"""SELECT Tarih, MinSıcaklık, MaxSıcaklık FROM dailyForecast WHERE Tarih - YayınTarihi = {i}"""
                 data = im.execute(command).fetchall()
@@ -468,11 +475,7 @@ class dailyForecast:
                         y2.append(row[1])
                     elif limit == "Maksimum":
                         y2.append(row[2])
-                main_title = f"""
-                {self.il} {self.ilce}
-                {limit} Sıcaklık
-                """
-                plt.suptitle(main_title, fontsize= 20, fontweight='bold')
+                
                 left_title = f"""
                 {i}. Gün {limit} Sıcaklık Tahmini
                 """
@@ -512,13 +515,13 @@ class dailyForecast:
                     ax5.grid(True)
                     ax5.legend()
 
-                plt.xlabel("Zaman")
+            plt.xlabel("Zaman")
 
-                locator = mdates.AutoDateLocator()
-                formatter = mdates.ConciseDateFormatter(locator)
-                plt.gca().xaxis.set_major_locator(locator)
-                plt.gca().xaxis.set_major_formatter(formatter)
-                #plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+            locator = mdates.AutoDateLocator()
+            formatter = mdates.ConciseDateFormatter(locator)
+            plt.gca().xaxis.set_major_locator(locator)
+            plt.gca().xaxis.set_major_formatter(formatter)
+            #plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
 
             plt.savefig(dir + f"{limit}.pdf", dpi=300)
             plt.close()
