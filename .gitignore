@@ -173,9 +173,13 @@ cython_debug/
 *.vsix
 
 # repl.it
-.replit
+pyproject.toml
+poetry.lock
 replit.nix
+.config/
+.replit
 venv/
+.upm
 
 # Project Files
 work/
