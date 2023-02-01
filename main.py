@@ -14,7 +14,7 @@ import sqlite3
 import os
 
 # log dosyası oluşturulur.
-logging.basicConfig(filename='.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logging.basicConfig(filename='.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 
 logging.debug('Debug mesajı')
 logging.info('Info mesajı')
@@ -211,21 +211,16 @@ class instant:
         
                 zaman.append(datetime(int(yıl), int(ay), int(gün), int(saat), int(dakika),int(saniye)))
                 sicaklik.append(float(row[2]))
+                nem.append(float(row[3]))
                 yagis.append(float(row[4]))
-
-                N = (m.log(float(row[3])/100)+((17.27*float(row[2]))/(237.3+float(row[2]))))/17.27
-                D = (237.3*N)/(1-N)
-                        
-                dewpoint.append(D)
                 rüzgar_yön.append(float(row[5]))
                 rüzgar_hiz.append(float(row[6]))
                 basinc.append(float(row[7]))
-                nem.append(float(row[3]))
             
             # Yağış verisindeki hatalar düzeltilir.
             for index, eleman in enumerate(yagis):
                 if eleman<0:
-                    yagis[index] = 0
+                    yagis[index] = yagis[index-1]
             
             # İki ölçüm arasındaki yağış miktarı farkı hesaplanıp liste oluşturulur.
             for i in range(1, len(yagis)):
@@ -233,6 +228,17 @@ class instant:
                     yagis_x.append(yagis[i])
                 else:
                     yagis_x.append(yagis[i]-yagis[i-1])
+
+            # Nem verisindeki hatalar düzeltilir.
+            for index, eleman in enumerate(nem):
+                if eleman<0:
+                    nem[index] = nem[index-1]
+
+            # dewpoint hesaplanır.
+            for i in range(0, len(zaman)):
+                N = (m.log(nem[i]/100)+((17.27*sicaklik[i])/(237.3+sicaklik[i])))/17.27
+                D = (237.3*N)/(1-N)
+                dewpoint.append(float(D))
 
             # Aynı x eksenini kullanan 5 grafik oluşturulur.
             f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, 1, figsize=(20,20), sharex=True) 
