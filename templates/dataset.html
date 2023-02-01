@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CREATE GRAPH</title>
+  </head>
+  <body>
+    <h1>CREATE GRAPH</h1>
+    <form action="/data" method="POST">
+      <label>İl:</label>
+      <select id="il" name="il">
+        {% for i in il %}
+        <option value={{ i }}>{{ i }}</option>
+        {% endfor %}
+      </select>
+      <br>
+      <label>İlçe:</label>
+      <select id="ilce" name="ilce">
+        {% for i in ilce %}
+        <option value={{ i }}>{{ i }}</option>
+        {% endfor %}
+      </select>
+
+      <br>
+      <br>
+
+      <label for="start_time">Başlangıç Zamanı:</label>
+      <input type="datetime-local" id="start_time" name="start_time">
+      <br>
+      <label for="end_time">Bitiş Zamanı:</label>
+      <input type="datetime-local" id="end_time" name="end_time">
+      <br>
+      <input type="submit" value="Grafik Oluştur">
+    </form>
+  </body>
+</html>

@@ -1,14 +1,55 @@
-import os
-from flask import Flask, send_file, render_template
-from zipfile import ZipFile
+from flask import Flask, send_file, render_template, request
+from datetime import datetime
 from threading import Thread
-
+import function
+import sqlite3
+import os
 app = Flask("")
+
 @app.route('/')
 def home():
     directory = 'work/'
     files = os.listdir(directory)
     return render_template('index.html', files=files)
+
+@app.route('/dataset')
+def index():
+	il = ["Samsun", "Amasya", "Ordu", "Sinop", "İstanbul", "Kahramanmaraş", "Osmaniye","Rize"]
+	ilce = ["Atakum", "Merkez", "Arnavutköy", "Elbistan", "Altınordu"]
+	#district = instant(None, None).district
+	return render_template('dataset.html', il=il, ilce=ilce)
+
+@app.route('/data', methods=['POST'])
+def data():
+	start_time = request.form['start_time']
+	end_time = request.form['end_time']
+	il = request.form['il']
+	ilce = request.form['ilce']
+
+	start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
+	end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M")
+
+	start_tarih = format(start_time, "%d/%m/%Y")
+	start_saat = format(start_time, "%H:%M:%S")
+
+	end_tarih = format(end_time, "%d/%m/%Y")
+	end_saat = format(end_time, "%H:%M:%S")
+
+	dir = f"work/{il}/{ilce}/"
+	# SQLite veritabanından verileri çekin
+	conn = sqlite3.connect(dir + 'data.db')
+	cursor = conn.cursor()
+	command = f"""SELECT Tarih, Saat, Sıcaklık, Nem, YağışMiktarı, RüzgarYönü, RüzgarHızı, DİBasınç FROM instantData WHERE (Tarih BETWEEN '{start_tarih}' AND '{end_tarih}') """  # AND (Saat BETWEEN '{start_saat}' AND '{end_saat}')
+	cursor.execute(command)
+	data = cursor.fetchall()
+	conn.close()
+
+	function.instant(il, ilce).graph(dir, data)
+	# Verileri grafikte gösterin
+	#t = threading.Thread(target=graph, args=("work/", data))
+	#t.start()
+
+	return send_file(dir+"/user/meteogram.pdf", as_attachment=True)
 
 @app.route('/download/<path:file_path>')
 def download_file(file_path):
