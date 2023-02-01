@@ -16,5 +16,6 @@
 replit.nix
 venv/
 
-# Project File
+# Project Files
 work/
+.log
