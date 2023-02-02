@@ -1,18 +1,183 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>Dizin İçeriği</title>
-</head>
-<body>
-    <h1>Dizin İçeriği ({{ file_path }})</h1>
-	<table>
-        {% for file, size in files.items() %}
-        <tr>
-            <td><a href=https://amadeus.mhmmdlsubasi.repl.co/download/{{file_path}}/{{ file }}> {{ file }} </a></td>
-            <td>{{ size/1024 }} KB</td>
-        </tr>
-        {% endfor %}
 
-    </table>
+<html dir="ltr" lang="tr">
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <meta name="google" value="notranslate">
+
+  <link rel="stylesheet" href='/static/download.css' />
+
+  <script>
+    function addRow(name, url, isdir,
+        size, size_string, date_modified, date_modified_string) {
+      if (name == "." || name == "..")
+        return;
+
+      var root = document.location.pathname;
+      if (root.substr(-1) !== "/")
+        root += "/";
+
+      var tbody = document.getElementById("tbody");
+      var row = document.createElement("tr");
+      var file_cell = document.createElement("td");
+      var link = document.createElement("a");
+      var isdir = Number(isdir)
+      var size = Number(size)
+      var size = Number(size)
+      var date_modified = Number(date_modified)
+
+      link.className = isdir ? "icon dir" : "icon file";
+
+      if (isdir) {
+        name = name + "/";
+        url = url + "/";
+        size = 0;
+        size_string = "";
+      } else {
+        link.draggable = "true";
+        link.addEventListener("dragstart", onDragStart, false);
+      }
+      link.innerText = name;
+      link.href = root + url;
+
+      file_cell.dataset.value = name;
+      file_cell.appendChild(link);
+
+      row.appendChild(file_cell);
+      row.appendChild(createCell(size, size_string));
+      row.appendChild(createCell(date_modified, date_modified_string));
+
+      tbody.appendChild(row);
+    }
+
+    function onDragStart(e) {
+      var el = e.srcElement;
+      var name = el.innerText.replace(":", "");
+      var download_url_data = "application/octet-stream:" + name + ":" + el.href;
+      e.dataTransfer.setData("DownloadURL", download_url_data);
+      e.dataTransfer.effectAllowed = "copy";
+    }
+
+    function createCell(value, text) {
+      var cell = document.createElement("td");
+      cell.setAttribute("class", "detailsColumn");
+      cell.dataset.value = value;
+      cell.innerText = text;
+      return cell;
+    }
+
+    function start(location) {
+      var header = document.getElementById("header");
+      header.innerText = header.innerText.replace("LOCATION", location);
+
+      document.getElementById("title").innerText = header.innerText;
+    }
+
+    function onHasParentDirectory() {
+      var box = document.getElementById("parentDirLinkBox");
+      box.style.display = "block";
+
+      var root = document.location.pathname;
+      if (!root.endsWith("/"))
+        root += "/";
+
+      var link = document.getElementById("parentDirLink");
+      link.href = root + "..";
+    }
+
+    function sortTable(column) {
+      var theader = document.getElementById("theader");
+      var oldOrder = theader.cells[column].dataset.order || '1';
+      oldOrder = parseInt(oldOrder, 10)
+      var newOrder = 0 - oldOrder;
+      theader.cells[column].dataset.order = newOrder;
+
+      var tbody = document.getElementById("tbody");
+      var rows = tbody.rows;
+      var list = [], i;
+      for (i = 0; i < rows.length; i++) {
+        list.push(rows[i]);
+      }
+
+      list.sort(function(row1, row2) {
+        var a = row1.cells[column].dataset.value;
+        var b = row2.cells[column].dataset.value;
+        if (column) {
+          a = parseInt(a, 10);
+          b = parseInt(b, 10);
+          return a > b ? newOrder : a < b ? oldOrder : 0;
+        }
+
+        // Column 0 is text.
+        if (a > b)
+          return newOrder;
+        if (a < b)
+          return oldOrder;
+        return 0;
+      });
+
+      // Appending an existing child again just moves it.
+      for (i = 0; i < list.length; i++) {
+        tbody.appendChild(list[i]);
+      }
+    }
+
+    // Add event handlers to column headers.
+    function addHandlers(element, column) {
+      element.onclick = (e) => sortTable(column);
+      element.onkeydown = (e) => {
+        if (e.key == 'Enter' || e.key == ' ') {
+          sortTable(column);
+          e.preventDefault();
+        }
+      };
+    }
+
+    function onLoad() {
+      addHandlers(document.getElementById('nameColumnHeader'), 0);
+      addHandlers(document.getElementById('sizeColumnHeader'), 1);
+      addHandlers(document.getElementById('dateColumnHeader'), 2);
+    }
+
+    window.addEventListener('DOMContentLoaded', onLoad);
+  </script>
+
+  <title id="title"></title>
+
+</head>
+
+<body>
+
+<h1 id="header">LOCATION dizini</h1>
+
+<div id="parentDirLinkBox" style="display:none">
+  <a id="parentDirLink" class="icon up">
+    <span id="parentDirText">[üst dizin]</span>
+  </a>
+</div>
+
+<table>
+  <thead>
+    <tr class="header" id="theader">
+      <th id="nameColumnHeader" tabindex=0 role="button">Adı</th>
+      <th id="sizeColumnHeader" class="detailsColumn" tabindex=0 role="button">Boyut</th>
+      <th id="dateColumnHeader" class="detailsColumn" tabindex=0 role="button">Değiştirme tarihi</th>
+    </tr>
+  </thead>
+  <tbody id="tbody">
+  </tbody>
+</table>
+
 </body>
+
 </html>
+
+<script>var loadTimeData;class LoadTimeData{constructor(){this.data_=null}set data(value){expect(!this.data_,"Re-setting data.");this.data_=value}valueExists(id){return id in this.data_}getValue(id){expect(this.data_,"No data. Did you remember to include strings.js?");const value=this.data_[id];expect(typeof value!=="undefined","Could not find value for "+id);return value}getString(id){const value=this.getValue(id);expectIsType(id,value,"string");return value}getStringF(id,var_args){const value=this.getString(id);if(!value){return""}const args=Array.prototype.slice.call(arguments);args[0]=value;return this.substituteString.apply(this,args)}substituteString(label,var_args){const varArgs=arguments;return label.replace(/\$(.|$|\n)/g,(function(m){expect(m.match(/\$[$1-9]/),"Unescaped $ found in localized string.");return m==="$$"?"$":varArgs[m[1]]}))}getBoolean(id){const value=this.getValue(id);expectIsType(id,value,"boolean");return value}getInteger(id){const value=this.getValue(id);expectIsType(id,value,"number");expect(value===Math.floor(value),"Number isn't integer: "+value);return value}overrideValues(replacements){expect(typeof replacements==="object","Replacements must be a dictionary object.");for(const key in replacements){this.data_[key]=replacements[key]}}}function expect(condition,message){if(!condition){throw new Error("Unexpected condition on "+document.location.href+": "+message)}}function expectIsType(id,value,type){expect(typeof value===type,"["+value+"] ("+id+") is not a "+type)}expect(!loadTimeData,"should only include this file once");loadTimeData=new LoadTimeData;window.loadTimeData=loadTimeData;console.warn("crbug/1173575, non-JS module files deprecated.");
+</script><script>loadTimeData.data = {"header":"LOCATION dizini","headerDateModified":"Değiştirme tarihi","headerName":"Adı","headerSize":"Boyut","language":"tr","parentDirText":"[üst dizin]","textdirection":"ltr"};</script><script>start("{{file_path}}");</script>
+<script>onHasParentDirectory();</script>
+{% for file, dict2 in dict1.items() %}
+<script>addRow("{{ file }}","{{ file }}", "{{dict2[4]}}", "{{ dict2[2 ]}}", "{{dict2[3]}}", "{{ dict2[0] }}", "{{ dict2[1] }}");</script>
+{% endfor %}

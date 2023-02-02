@@ -1,9 +1,6 @@
 # Gerekli kütüphaneler import edilir.
-from matplotlib.backends.backend_pdf import PdfPages
 from requests.adapters import HTTPAdapter
 from datetime import datetime, timedelta
-from keep_alive import keep_alive
-from windrose import WindroseAxes
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -15,16 +12,8 @@ import logging
 import sqlite3
 import os
 
-# log dosyası oluşturulur.
-logging.basicConfig(filename='.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
-
-logging.debug('Debug mesajı')
-logging.info('Info mesajı')
-logging.warning('Warning mesajı')
-logging.error('Error mesajı')
-
 # Grafik çıktılarının otomatik boyutlandırılması için:
-#rcParams.update({'figure.autolayout': True})
+rcParams.update({'figure.autolayout': True})
 
 # API isteğinde çok fazla deneme hatası almamak için:
 session = requests.Session()
@@ -177,26 +166,29 @@ class instant:
                     im.execute(newRow, row)
                     vt.commit()
                     vt.close()
-                    self.graph(dir)
+
+                    # dir yolu mevcut değilse oluşturulur.
+                    if os.path.exists(dir) == False:
+                        os.makedirs(dir)
+
+                    # Veri tabanı dosyasına bağlanılır.
+                    vt = sqlite3.connect(dir + 'data.db')
+                    im = vt.cursor()
+
+                    # Veriler bir değişkene atanır.
+                    veri = im.execute("""SELECT Tarih, Saat, Sıcaklık, Nem, YağışMiktarı, RüzgarYönü, RüzgarHızı, DİBasınç FROM instantData""").fetchall()
+                    
+                    # Veri tabanı dosyası kapatılır.
+                    vt.close()
+
+                    self.graph(dir+"/user/", veri)
         except:
             logging.warning(f"{self.il}/{self.ilce} anlık ölçüm verileri veri tabanına yazılırken bir hata meydana geldi.")
     
-    def graph(self, dir):
+    def graph(self, dir, veri):
         try:
-            # dir yolu mevcut değilse oluşturulur.
             if os.path.exists(dir) == False:
                 os.makedirs(dir)
-
-            # Veri tabanı dosyasına bağlanılır.
-            vt = sqlite3.connect(dir + 'data.db')
-            im = vt.cursor()
-
-            # Veriler bir değişkene atanır.
-            veri = im.execute("""SELECT Tarih, Saat, Sıcaklık, Nem, YağışMiktarı, RüzgarYönü, RüzgarHızı, DİBasınç FROM instantData""").fetchall()
-            
-            # Veri tabanı dosyası kapatılır.
-            vt.close()
-            
             zaman = []
             sicaklik = []
             dewpoint = []
@@ -315,28 +307,18 @@ class instant:
             # x ekseni belirteçleri için gerekli ayarlar yapılır.
             locator = mdates.AutoDateLocator()
             formatter = mdates.ConciseDateFormatter(locator)
-            f.gca().xaxis.set_major_locator(locator)
-            f.gca().xaxis.set_major_formatter(formatter)
-            f.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+            plt.gca().xaxis.set_major_locator(locator)
+            plt.gca().xaxis.set_major_formatter(formatter)
+            plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
 
             #plt.tight_layout(h_pad=0)
-            
-            #f.set_xlabel("Zaman")
+            plt.xlabel("Zaman")
             #plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
             #plt.autoscale()
             #plt.gca().yaxis.set_major_locator(ticker.MultipleLocator(5))
-
-            #ax = f.add_subplot(1, 1, 1, projection="windrose") 
             
             # Oluşturulan figür pdf dosyası olarak kaydedilir.
-            plt.tight_layout()
-            plt.savefig(dir + "meteogram.pdf", format='pdf', dpi=300)
-            plt.close()
-
-            ax = WindroseAxes.from_ax()
-            ax.bar(rüzgar_yön, rüzgar_hiz)
-            ax.set_legend()
-            plt.savefig(dir + "windrose.pdf", format="pdf", dpi=300)
+            plt.savefig(dir + "meteogram.pdf", dpi=300)
             plt.close()
         except:
             logging.warning(f"{self.il}/{self.ilce} meteogramı çizilirken bir hata meydana geldi. Dosya konumu: {dir}")
@@ -482,8 +464,7 @@ class dailyForecast:
                 x2 = []
                 y2 = []
                 for row in data:
-                    gün, ay, yıl = row[0].split("/")
-                    x2.append(datetime(int(yıl), int(ay), int(gün)))
+                    x2.append(row[0])
                     if limit == "Minimum":
                         y2.append(row[1])
                     elif limit == "Maksimum":
@@ -651,31 +632,3 @@ class hourlyForecast:
     def graph(self):
         pass
 
-
-province = get_provinceInfo()
-district = get_districtInfo()
-
-# Çalışma alanı belirlenir. 
-# İlçe girilmeyecek veya ilin merkez ilçesinden veri alınacaksa None değeri verilir.
-workspace = {
-    "Samsun" : None,
-    "Amasya" : None,
-    "Ordu" : None,
-    "Sinop" : None,
-    "İstanbul" : "Arnavutköy",
-    "Kahramanmaraş" : "Elbistan",
-    "Osmaniye" : None,
-    "Rize" : None
-}
-
-keep_alive()
-while 1:
-    for il, ilce in workspace.items():
-        anlik = instant(il, ilce)
-        anlik.sql()
-
-        saatlik = hourlyForecast(il, ilce)
-        saatlik.sql()
-
-        günlük = dailyForecast(il, ilce)
-        günlük.sql()

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="color-scheme" content="light dark">
+    <meta name="google" value="notranslate">
+
+    <link rel="stylesheet" href='/static/dataset.css' />
+    
+    <title>CREATE GRAPH</title>
+    
+  </head>
+  <body>
+    <h1>CREATE GRAPH</h1>
+    <form action="/data" method="POST">
+      <label for="il">İl:</label>
+      <select id="il" name="il">
+        {% for city in cities %}
+          <option value="{{ city }}">{{ city }}</option>
+        {% endfor %}
+      </select>
+      <br>
+      <label for="ilce">İlçe:</label>
+      <select id="ilce" name="ilce">
+        {% for city, districts in cities.items() %}
+          {% if city == cities.keys()[0] %}
+            {% for district in districts %}
+              <option value="{{ district }}">{{ district }}</option>
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </select>
+      <br>
+      <label for="start_time">Başlangıç Zamanı:</label>
+      <input type="datetime-local" id="start_time" name="start_time">
+      <br>
+      <label for="end_time">Bitiş Zamanı:</label>
+      <input type="datetime-local" id="end_time" name="end_time">
+      <br><br>
+      <input type="submit" value="Grafik Oluştur">
+    </form>
+    <script>
+      const ilSelect = document.querySelector('#il');
+      const ilceSelect = document.querySelector('#ilce');
+      
+      const cities = {{ cities|tojson|safe }};
+      
+      ilSelect.addEventListener('change', function() {
+        const selectedIl = ilSelect.value;
+        const ilceler = cities[selectedIl];
+        
+        ilceSelect.innerHTML = '';
+        for (const ilce of ilceler) {
+          const option = document.createElement('option');
+          option.value = ilce;
+          option.innerHTML = ilce;
+          ilceSelect.appendChild(option);
+        }
+      });
+    </script>
+    <script>
+      const baslangicInput = document.querySelector('#start_time');
+      const bitisInput = document.querySelector('#end_time');
+      
+      bitisInput.addEventListener('change', function() {
+        if (baslangicInput.value >= bitisInput.value) {
+          alert('Başlangıç zamanı, bitiş zamanından büyük veya eşit olamaz!');
+          bitisInput.value = '';
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,39 +1,93 @@
+from flask import Flask, send_file, render_template, request
+from datetime import datetime, timedelta
+from pytz import timezone
+import threading
+#import function
+import sqlite3
 import os
-from flask import Flask, send_file, render_template
-from zipfile import ZipFile
-from threading import Thread
+
+def timezoneConverter(utc_datetime):
+    return utc_datetime.astimezone(timezone('Turkey'))
 
 app = Flask("")
+
 @app.route('/')
 def home():
-    directory = 'work/'
-    files = os.listdir(directory)
-    return render_template('index.html', files=files)
+    return render_template('index.html')
+
+@app.route('/dataset')
+def index():
+	dict1 = {}
+	for il in os.listdir("work/"):
+		dict1.setdefault(il, [])
+		for ilce in os.listdir(f"work/{il}/"):
+			dict1[il].append(ilce)
+	return render_template('dataset.html', cities=dict1)
+
+@app.route('/data', methods=['POST'])
+def data():
+	start_time = request.form['start_time']
+	end_time = request.form['end_time']
+	il = request.form['il']
+	ilce = request.form['ilce']
+
+	start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
+	end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M")
+
+	start_tarih = format(start_time, "%d/%m/%Y")
+	start_saat = format(start_time, "%H:%M:%S")
+
+	end_tarih = format(end_time, "%d/%m/%Y")
+	end_saat = format(end_time, "%H:%M:%S")
+
+	dir = f"work/{il}/{ilce}/"
+	# SQLite veritabanından verileri çekin
+	conn = sqlite3.connect(dir + 'data.db')
+	cursor = conn.cursor()
+	command = f"""SELECT Tarih, Saat, Sıcaklık, Nem, YağışMiktarı, RüzgarYönü, RüzgarHızı, DİBasınç FROM instantData WHERE (Tarih BETWEEN '{start_tarih}' AND '{end_tarih}') """  # AND (Saat BETWEEN '{start_saat}' AND '{end_saat}')
+	cursor.execute(command)
+	data = cursor.fetchall()
+	conn.close()
+
+	#function.instant(il, ilce).graph(dir, data)
+
+	#return send_file(dir+"/user/meteogram.pdf", as_attachment=True)
+	return data
 
 @app.route('/download/<path:file_path>')
 def download_file(file_path):
-    if os.path.isfile(file_path): 
-        return send_file(file_path, as_attachment=True)
-    elif os.path.isdir(file_path):
-        files=os.listdir(file_path)
-        size={}
-        for file in files:
-            size.setdefault(file, os.stat(file_path+"/"+file).st_size)
+	if os.path.isfile(file_path): 
+		return send_file(file_path, as_attachment=True)
+	if os.path.isdir(file_path):
+		files=os.listdir(file_path)
+		dict1={}
+		for file in files:
+			tarih = os.stat(file_path+"/"+file).st_mtime
+			tarih_format = format(timezoneConverter(datetime.fromtimestamp(tarih)), "%d/%m/%Y %H:%M:%S")
+			boyut = os.stat(file_path+"/"+file).st_size
 
-        return render_template('download.html', files=size, file_path=file_path)
-    #elif os.path.isdir(file_path):
-        #zip_file_name = file_path + ".zip"
-        #with ZipFile(zip_file_name, 'w') as zip:
-            #for root, dirs, files in os.walk(file_path):
-                #for file in files:
-                    #zip.write(os.path.join(root, file))
-        #return send_file(zip_file_name, as_attachment=True)
-    else:
-        return "File or directory not found."
+			if boyut<1024:
+				boyut_format = f"{round(boyut,1)} B"
+			elif boyut<1024*1024:
+				boyut_format = f"{round(boyut/1024,1)} kB"
+			elif boyut<1024*1024*1024:
+				boyut_format = f"{round(boyut/(1024*1024),1)} MB"
+			elif boyut<1024*1024*1024*1024:
+				boyut_format = f"{round(boyut/(1024*1024*1024),1)} GB"
+			
+			if os.path.isfile(file_path+"/"+file):
+				file_type = 0
+			elif os.path.isdir(file_path+"/"+file):
+				file_type = 1
+			
+			dict1.setdefault(file, [tarih, tarih_format, boyut, boyut_format, file_type])
+		return render_template('download.html', dict1=dict1, file_path=file_path)
+	else:
+		return "File or directory not found."
 
 def run():
-    app.run(host="0.0.0.0", port=530)
+    app.run(host="0.0.0.0", port=8008) # host="0.0.0.0", port=530
 
 def keep_alive():
-    t = Thread(target=run)
+    t = threading.Thread(target=run)
     t.start()
