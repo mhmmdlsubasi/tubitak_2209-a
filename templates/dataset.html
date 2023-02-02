@@ -2,34 +2,81 @@
 <html>
   <head>
     <title>CREATE GRAPH</title>
+    <style>
+      h1 {
+       text-align: center;
+      }
+      form {
+        width: 50%;
+        margin: 0 auto;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      select {
+        width: 200px;
+      }
+    </style>
   </head>
   <body>
     <h1>CREATE GRAPH</h1>
     <form action="/data" method="POST">
-      <label>İl:</label>
+      <label for="il">İl:</label>
       <select id="il" name="il">
-        {% for i in il %}
-        <option value={{ i }}>{{ i }}</option>
+        {% for city in cities %}
+          <option value="{{ city }}">{{ city }}</option>
         {% endfor %}
       </select>
       <br>
-      <label>İlçe:</label>
+      <label for="ilce">İlçe:</label>
       <select id="ilce" name="ilce">
-        {% for i in ilce %}
-        <option value={{ i }}>{{ i }}</option>
+        {% for city, districts in cities.items() %}
+          {% if city == cities.keys()[0] %}
+            {% for district in districts %}
+              <option value="{{ district }}">{{ district }}</option>
+            {% endfor %}
+          {% endif %}
         {% endfor %}
       </select>
-
       <br>
-      <br>
-
       <label for="start_time">Başlangıç Zamanı:</label>
       <input type="datetime-local" id="start_time" name="start_time">
       <br>
       <label for="end_time">Bitiş Zamanı:</label>
       <input type="datetime-local" id="end_time" name="end_time">
-      <br>
+      <br><br>
       <input type="submit" value="Grafik Oluştur">
     </form>
+    <script>
+      const ilSelect = document.querySelector('#il');
+      const ilceSelect = document.querySelector('#ilce');
+      
+      const cities = {{ cities|tojson|safe }};
+      
+      ilSelect.addEventListener('change', function() {
+        const selectedIl = ilSelect.value;
+        const ilceler = cities[selectedIl];
+        
+        ilceSelect.innerHTML = '';
+        for (const ilce of ilceler) {
+          const option = document.createElement('option');
+          option.value = ilce;
+          option.innerHTML = ilce;
+          ilceSelect.appendChild(option);
+        }
+      });
+    </script>
+    <script>
+      const baslangicInput = document.querySelector('#start_time');
+      const bitisInput = document.querySelector('#end_time');
+      
+      bitisInput.addEventListener('change', function() {
+        if (baslangicInput.value >= bitisInput.value) {
+          alert('Başlangıç zamanı, bitiş zamanından büyük veya eşit olamaz!');
+          bitisInput.value = '';
+        }
+      });
+    </script>
   </body>
 </html>

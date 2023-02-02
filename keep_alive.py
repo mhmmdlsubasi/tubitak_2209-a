@@ -17,10 +17,12 @@ def home():
 
 @app.route('/dataset')
 def index():
-	il = ["Samsun", "Amasya", "Ordu", "Sinop", "İstanbul", "Kahramanmaraş", "Osmaniye","Rize"]
-	ilce = ["Atakum", "Merkez", "Arnavutköy", "Elbistan", "Altınordu"]
-	#district = instant(None, None).district
-	return render_template('dataset.html', il=il, ilce=ilce)
+	dict1 = {}
+	for il in os.listdir("work/"):
+		dict1.setdefault(il, [])
+		for ilce in os.listdir(f"work/{il}/"):
+			dict1[il].append(ilce)
+	return render_template('dataset.html', cities=dict1)
 
 @app.route('/data', methods=['POST'])
 def data():
@@ -84,7 +86,7 @@ def download_file(file_path):
 		return "File or directory not found."
 
 def run():
-    app.run(host="0.0.0.0", port=8080) # host="0.0.0.0", port=530
+    app.run(host="0.0.0.0", port=8008) # host="0.0.0.0", port=530
 
 def keep_alive():
     t = threading.Thread(target=run)
