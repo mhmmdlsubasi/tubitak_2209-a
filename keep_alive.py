@@ -1,12 +1,15 @@
 from flask import Flask, send_file, render_template, request
-from datetime import datetime
+from datetime import datetime, timedelta
+from pytz import timezone
 import threading
 #import function
 import sqlite3
 import os
 
-app = Flask("")
+def timezoneConverter(utc_datetime):
+    return utc_datetime.astimezone(timezone('Turkey'))
 
+app = Flask("")
 
 @app.route('/')
 def home():
@@ -51,24 +54,34 @@ def data():
 
 @app.route('/download/<path:file_path>')
 def download_file(file_path):
-    if os.path.isfile(file_path): 
-        return send_file(file_path, as_attachment=True)
-    elif os.path.isdir(file_path):
-        files=os.listdir(file_path)
-        size={}
-        for file in files:
-            size.setdefault(file, os.stat(file_path+"/"+file).st_size)
+	if os.path.isfile(file_path): 
+		return send_file(file_path, as_attachment=True)
+	if os.path.isdir(file_path):
+		files=os.listdir(file_path)
+		dict1={}
+		for file in files:
+			tarih = os.stat(file_path+"/"+file).st_mtime
+			tarih_format = format(timezoneConverter(datetime.fromtimestamp(tarih)), "%d/%m/%Y %H:%M:%S")
+			boyut = os.stat(file_path+"/"+file).st_size
 
-        return render_template('download.html', files=size, file_path=file_path)
-    #elif os.path.isdir(file_path):
-        #zip_file_name = file_path + ".zip"
-        #with ZipFile(zip_file_name, 'w') as zip:
-            #for root, dirs, files in os.walk(file_path):
-                #for file in files:
-                    #zip.write(os.path.join(root, file))
-        #return send_file(zip_file_name, as_attachment=True)
-    else:
-        return "File or directory not found."
+			if boyut<1024:
+				boyut_format = f"{round(boyut,1)} B"
+			elif boyut<1024*1024:
+				boyut_format = f"{round(boyut/1024,1)} kB"
+			elif boyut<1024*1024*1024:
+				boyut_format = f"{round(boyut/(1024*1024),1)} MB"
+			elif boyut<1024*1024*1024*1024:
+				boyut_format = f"{round(boyut/(1024*1024*1024),1)} GB"
+			
+			if os.path.isfile(file_path+"/"+file):
+				file_type = 0
+			elif os.path.isdir(file_path+"/"+file):
+				file_type = 1
+			
+			dict1.setdefault(file, [tarih, tarih_format, boyut, boyut_format, file_type])
+		return render_template('download.html', dict1=dict1, file_path=file_path)
+	else:
+		return "File or directory not found."
 
 def run():
     app.run(host="0.0.0.0", port=8080) # host="0.0.0.0", port=530
