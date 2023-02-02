@@ -482,7 +482,8 @@ class dailyForecast:
                 x2 = []
                 y2 = []
                 for row in data:
-                    x2.append(row[0])
+                    gün, ay, yıl = row[0].split("/")
+                    x2.append(datetime(int(yıl), int(ay), int(gün)))
                     if limit == "Minimum":
                         y2.append(row[1])
                     elif limit == "Maksimum":
