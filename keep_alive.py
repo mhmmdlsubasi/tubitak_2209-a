@@ -2,7 +2,7 @@ from flask import Flask, send_file, render_template, request
 from datetime import datetime, timedelta
 from pytz import timezone
 import threading
-#import function
+#from function import instant
 import sqlite3
 import os
 
@@ -34,27 +34,21 @@ def data():
 	start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
 	end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M")
 
-	start_tarih = format(start_time, "%d/%m/%Y")
-	start_saat = format(start_time, "%H:%M:%S")
-
-	end_tarih = format(end_time, "%d/%m/%Y")
-	end_saat = format(end_time, "%H:%M:%S")
-
 	dir = f"work/{il}/{ilce}/"
 	# SQLite veritabanından verileri çekin
 	conn = sqlite3.connect(dir + 'data.db')
 	cursor = conn.cursor()
-	command = f"""SELECT Tarih, Saat, Sıcaklık, Nem, YağışMiktarı, RüzgarYönü, RüzgarHızı, DİBasınç FROM instantData WHERE (Tarih BETWEEN '{start_tarih}' AND '{end_tarih}') """  # AND (Saat BETWEEN '{start_saat}' AND '{end_saat}')
+	command = f"""SELECT datetime(veriZamani), sicaklik, nem, yagis00Now, ruzgarYon, ruzgarHiz, denizeIndirgenmisBasinc FROM instantData WHERE (datetime(veriZamani) BETWEEN '{start_time}' AND '{end_time}') """  # AND (Saat BETWEEN '{start_saat}' AND '{end_saat}')
 	cursor.execute(command)
 	data = cursor.fetchall()
 	conn.close()
 
-	#function.instant(il, ilce).graph(dir, data)
+	# instant(il, ilce).graph(dir, data)
 
-	#return send_file(dir+"/user/meteogram.pdf", as_attachment=True)
+	# return send_file(dir+"user/meteogram.pdf", as_attachment=True)
 	return data
 
-@app.route('/download/<path:file_path>')
+@app.route('/<path:file_path>')
 def download_file(file_path):
 	if os.path.isfile(file_path): 
 		return send_file(file_path, as_attachment=True)
@@ -86,8 +80,8 @@ def download_file(file_path):
 		return "File or directory not found."
 
 def run():
-    app.run(host="0.0.0.0", port=8008) # host="0.0.0.0", port=530
+    app.run() # host="0.0.0.0", port=8080
 
 def keep_alive():
-    t = threading.Thread(target=run)
-    t.start()
+	t = threading.Thread(target=run)
+	t.start()

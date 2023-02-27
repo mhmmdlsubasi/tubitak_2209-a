@@ -37,8 +37,9 @@
       <br>
       <label for="end_time">Bitiş Zamanı:</label>
       <input type="datetime-local" id="end_time" name="end_time">
-      <br><br>
+      <br>
       <input type="submit" value="Grafik Oluştur">
+      <input type="reset" VALUE="Sıfırla"><BR>
     </form>
     <script>
       const ilSelect = document.querySelector('#il');
@@ -62,7 +63,7 @@
     <script>
       const baslangicInput = document.querySelector('#start_time');
       const bitisInput = document.querySelector('#end_time');
-      
+
       bitisInput.addEventListener('change', function() {
         if (baslangicInput.value >= bitisInput.value) {
           alert('Başlangıç zamanı, bitiş zamanından büyük veya eşit olamaz!');

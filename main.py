@@ -1,9 +1,10 @@
 # Gerekli kütüphaneler import edilir.
-from matplotlib.backends.backend_pdf import PdfPages
 from requests.adapters import HTTPAdapter
 from datetime import datetime, timedelta
 from keep_alive import keep_alive
 from windrose import WindroseAxes
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -43,17 +44,15 @@ def get_provinceInfo():
         try:
             link = "https://servis.mgm.gov.tr/web/merkezler/iller"
             headers = {"Origin": "https://www.mgm.gov.tr/"}
-            response = session.get(link, headers=headers)
-            json = response.json()
-
+            request = session.get(link, headers=headers)
+            response = request.json()
             provinceInfo = {}
-            for index in range(0, len(json)):
-                province = json[index]['il']
-                provinceInfo.setdefault(province, json[index])
+            for index in range(len(response)):
+                province = response[index]['il']
+                provinceInfo.setdefault(province, response[index])
             return provinceInfo
         except:
-            logging.warning('İl verisi başarılı bir şekilde alınamadı.')
-            continue
+            logging.error('İllerin merkez ilçelerine ait bilgiler başarılı bir şekilde alınamadı.')
 
 # Her ilin her ilçesinde bulunan istasyonların bilgileri
 def get_districtInfo():
@@ -65,19 +64,17 @@ def get_districtInfo():
             provinceInfo = get_provinceInfo()
             for province in provinceInfo.keys():
                 params = {"il": province}
-                response = session.get(link, params=params, headers=headers)
-                json = response.json()
-
-                for index in range(0, len(json)):
-                    province = json[index]['il']
-                    district = json[index]['ilce']
+                request = session.get(link, params=params, headers=headers)
+                response = request.json()
+                for index in range(0, len(response)):
+                    province = response[index]['il']
+                    district = response[index]['ilce']
                     districtInfo.setdefault(province, {})
-                    districtInfo[province].setdefault(district, json[index])
+                    districtInfo[province].setdefault(district, response[index])
             return districtInfo
         except:
-            logging.warning('İlçe verisi başarılı bir şekilde alınamadı.')
-            continue
-
+            logging.error('İllerin ilçelerine ait bilgiler başarılı bir şekilde alınamadı.')
+    
 # Anlık ölçüm verileri için:
 class instant:
     def __init__(self, il, ilce):
@@ -103,154 +100,104 @@ class instant:
             else:
                 params = {'istno': self.district[self.il][self.ilce]['sondurumIstNo']}
             request = session.get(url, params=params, headers=headers)
-            json = request.json()
-            json = json[0]
-            return json
+            response = request.json()
+            response = response[0]
+            return response
         except:
-            logging.warning(f"{self.il}/{self.ilce} anlık ölçüm verileri istenirken bir hata meydana geldi.")
+            logging.error(f"{self.il}/{self.ilce} anlık ölçüm verileri istenirken bir hata meydana geldi.")
 
     def check(self):
         try:
             self.instantData = self.request()
-            #instantData = instantDataRequest(il, ilce)
-            #global veriZamani
-            self.veriZamani = timezoneConverter(datetime.strptime(self.instantData["veriZamani"], "%Y-%m-%dT%H:%M:%S.%fZ"))
-            self.tarih = format(self.veriZamani, "%d/%m/%Y")
-            self.saat = format(self.veriZamani, "%H:%M:%S")
-
+            self.veriZamani = datetime.strptime(self.instantData["veriZamani"], "%Y-%m-%dT%H:%M:%S.%fZ")
             dir = f"work/{self.il}/{self.ilce}/"
             if os.path.exists(dir) == False:
-                os.makedirs(dir)
+                os.makedirs(dir)     
             vt = sqlite3.connect(dir + 'data.db')
             im = vt.cursor()
-
-            command = f"""CREATE TABLE IF NOT EXISTS instantData
-            (id INTEGER PRIMARY KEY, İl, İlçe, İstasyonNumarası, Tarih, Saat, Sıcaklık, Hadise, YağışMiktarı, Nem, RüzgarYönü, RüzgarHızı, ABasınç, DİBasınç)"""
-            im.execute(command)
-
-            command = f"""SELECT Tarih, Saat FROM instantData
-            WHERE Tarih='{self.tarih}' AND Saat='{self.saat}'"""
-            self.sonVeri = im.execute(command).fetchall()
-            if self.sonVeri != []:
-                vt.commit()
-                vt.close()
-            return self.sonVeri # self.instantData, self.veriZamani, self.tarih, self.saat, 
+            im.execute("CREATE TABLE IF NOT EXISTS instantData ({})".format(", ".join([f"{key}" for key in self.instantData.keys()])))
+            sonVeri = im.execute("SELECT veriZamani FROM instantData WHERE veriZamani='{}'".format(self.instantData["veriZamani"])).fetchall()
+            vt.commit()
+            vt.close()
+            return sonVeri 
         except:
-            logging.warning(f"{self.il}/{self.ilce} anlık ölçüm verileri kontrol edilirken bir hata meydana geldi.")
+            logging.error(f"{self.il}/{self.ilce} anlık ölçüm verileri kontrol edilirken bir hata meydana geldi.")
     
     def sql(self):
+        sonVeri = self.check()
+        dir_list = [
+            f"work/{self.il}/{self.ilce}/",
+            f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/",
+            f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/{self.veriZamani.month}/",
+            f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/{self.veriZamani.month}/{self.veriZamani.day}/"
+        ]
         try:
-            self.check()
-                #instantData, veriZamani, tarih, saat, sonVeri = instantDataCheck(il, ilce)
-            if self.sonVeri == []:
-                dir_list = [
-                f"work/{self.il}/{self.ilce}/",
-                f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/",
-                f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/{self.veriZamani.month}/",
-                f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/{self.veriZamani.month}/{self.veriZamani.day}/"
-            ]
+            if sonVeri == []:
                 for dir in dir_list:
                     if os.path.exists(dir) == False:
                         os.makedirs(dir)
-
                     vt = sqlite3.connect(dir + 'data.db')
                     im = vt.cursor()
-
-                    command = f"""CREATE TABLE IF NOT EXISTS instantData
-                    (id INTEGER PRIMARY KEY, İl, İlçe, İstasyonNumarası, Tarih, Saat, Sıcaklık, Hadise, YağışMiktarı, Nem, RüzgarYönü, RüzgarHızı, ABasınç, DİBasınç)"""
-                    im.execute(command)
-
-                    row = [
-                        self.il, self.ilce, self.instantData['istNo'], self.tarih, self.saat, self.instantData['sicaklik'],
-                        self.instantData['hadiseKodu'], self.instantData['yagis00Now'],
-                        self.instantData['nem'], self.instantData['ruzgarYon'], self.instantData['ruzgarHiz'],
-                        self.instantData['aktuelBasinc'], self.instantData['denizeIndirgenmisBasinc']
-                    ]
-                    mark = "?" * len(row)
-                    comma = ","
-                    mark = comma.join(mark)
-
-                    newRow = f"""INSERT INTO instantData 
-                    (İl, İlçe, İstasyonNumarası, Tarih, Saat, Sıcaklık, Hadise, YağışMiktarı, Nem, RüzgarYönü, RüzgarHızı, ABasınç, DİBasınç) 
-                    VALUES ({mark})"""
-
-                    im.execute(newRow, row)
+                    im.execute("CREATE TABLE IF NOT EXISTS instantData ({})".format(", ".join([f"{key}" for key in self.instantData.keys()])))
+                    im.execute("INSERT INTO instantData ({}) VALUES ({})".format(", ".join(self.instantData.keys()), ", ".join(["?" for _ in range(len(self.instantData))])), [values for values in self.instantData.values()])
                     vt.commit()
                     vt.close()
                     self.graph(dir)
         except:
             logging.warning(f"{self.il}/{self.ilce} anlık ölçüm verileri veri tabanına yazılırken bir hata meydana geldi.")
-    
+                      
     def graph(self, dir):
         try:
             # dir yolu mevcut değilse oluşturulur.
             if os.path.exists(dir) == False:
                 os.makedirs(dir)
-
             # Veri tabanı dosyasına bağlanılır.
             vt = sqlite3.connect(dir + 'data.db')
             im = vt.cursor()
-
             # Veriler bir değişkene atanır.
-            veri = im.execute("""SELECT Tarih, Saat, Sıcaklık, Nem, YağışMiktarı, RüzgarYönü, RüzgarHızı, DİBasınç FROM instantData""").fetchall()
-            
+            veri = im.execute("""SELECT veriZamani, sicaklik, nem, yagis00Now, ruzgarYon, ruzgarHiz, denizeIndirgenmisBasinc FROM instantData""").fetchall()
             # Veri tabanı dosyası kapatılır.
             vt.close()
             
-            zaman = []
+            veriZamani = []
             sicaklik = []
+            nem = []
             dewpoint = []
             yagis = [0.0]
-            rüzgar_yön = []
-            rüzgar_hiz = []
-            basinc = []
-            nem = []
-            yagis_x = []
+            yagisFark = []
+            toplamYagis = {}
+            ruzgarYon = []
+            ruzgarHiz = []
+            denizeIndirgenmisBasinc = []
 
             for row in veri:
-                gün, ay, yıl = row[0].split("/")
-                saat, dakika, saniye = row[1].split(":")
-        
-                zaman.append(datetime(int(yıl), int(ay), int(gün), int(saat), int(dakika),int(saniye)))
-                sicaklik.append(float(row[2]))
-                nem.append(float(row[3]))
-                yagis.append(float(row[4]))
-                rüzgar_yön.append(float(row[5]))
-                rüzgar_hiz.append(float(row[6]))
-                basinc.append(float(row[7]))
+                veriZamani.append(datetime.strptime(row[0], "%Y-%m-%dT%H:%M:%S.%fZ"))
+                sicaklik.append(float(row[1]))
+                nem.append(float(row[2]))
+                yagis.append(float(row[3]))
+                ruzgarYon.append(float(row[4]))
+                ruzgarHiz.append(float(row[5]))
+                denizeIndirgenmisBasinc.append(float(row[6]))
             
-            # Yağış verisindeki hatalar düzeltilir.
-            for index, eleman in enumerate(yagis):
-                if eleman<0:
-                    yagis[index] = yagis[index-1]
-            
+            # Verilerdeki hatalar düzeltilir.
+            for degisken in [nem, yagis, ruzgarHiz, denizeIndirgenmisBasinc]:
+                for index, eleman in enumerate(degisken):
+                    if eleman<0:
+                        degisken[index] = degisken[index-1]
             # İki ölçüm arasındaki yağış miktarı farkı hesaplanıp liste oluşturulur.
             for i in range(1, len(yagis)):
+                toplamYagis[veriZamani[i-1].date()] = yagis[i]
                 if yagis[i] < yagis[i-1] :
-                    yagis_x.append(yagis[i])
+                    yagisFark.append(yagis[i])
                 else:
-                    yagis_x.append(yagis[i]-yagis[i-1])
-
-            # Nem verisindeki hatalar düzeltilir.
-            for index, eleman in enumerate(nem):
-                if eleman<0:
-                    nem[index] = nem[index-1]
-
+                    yagisFark.append(yagis[i]-yagis[i-1])      
             # dewpoint hesaplanır.
-            for i in range(0, len(zaman)):
+            for i in range(len(veriZamani)):
                 N = (m.log(nem[i]/100)+((17.27*sicaklik[i])/(237.3+sicaklik[i])))/17.27
                 D = (237.3*N)/(1-N)
                 dewpoint.append(float(D))
-
             # Aynı x eksenini kullanan 5 grafik oluşturulur.
             f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, 1, figsize=(20,20), sharex=True) 
-            """
-            for ax in [ax1, ax2, ax3, ax4, ax5]:
-                for i in range(1, len(zaman)):
-                    if zaman[i].day != zaman[i-1].day:
-                        ax.axvline(zaman[i], color='black', linestyle='-', linewidth=0.3)
-            """
-            
             # Grafik ana başlığı oluşturulur.
             title = f"""
             METEOGRAM
@@ -259,53 +206,47 @@ class instant:
             ({self.district[self.il][self.ilce]['sondurumIstNo']})
             """
             plt.suptitle(title, fontsize= 20, fontweight='bold')
-
             # Grafik sol başlığı oluşturulur.
             left_title = f"""
             {self.district[self.il][self.ilce]['enlem']}N      {self.district[self.il][self.ilce]['boylam']}E
             Rakım:  {self.district[self.il][self.ilce]['yukseklik']}m
             """
             ax1.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
-            
             # Grafik sağ başlığı oluşturulur.
             right_title = f"""
-            Tarih:  {str(format(zaman[0], "%d/%m/%Y"))}
+            Tarih:  {str(format(veriZamani[0], "%d/%m/%Y"))}
 
             """
             ax1.set_title(right_title, loc='right', fontsize= 18, fontstyle="italic")
-
             # Sıcaklık grafikleri oluşturulur.
-            ax1.plot(zaman, sicaklik, "r-", label="Hava Sıcaklığı (°C)")
-            ax1.plot(zaman, dewpoint, "g-", label="Çiy Noktası Sıcaklığı (°C)")
+            ax1.plot(veriZamani, sicaklik, "r-", label="Hava Sıcaklığı (°C)")
+            ax1.plot(veriZamani, dewpoint, "g-", label="Çiy Noktası Sıcaklığı (°C)")
             ax1.set_ylabel("Sıcaklık (°C)")
             ax1.grid(True)
             ax1.legend()
-
             # Bağıl Nem grafiği oluşturulur.
-            ax2.plot(zaman, nem, label="Bağıl Nem (%)")
-            ax2.fill_between(zaman, nem, alpha=0.2)
+            ax2.plot(veriZamani, nem, label="Bağıl Nem (%)")
+            ax2.fill_between(veriZamani, nem, alpha=0.2)
             ax2.set_ylabel("Bağıl Nem (%)")
             ax2.grid(True)
             ax2.legend()
-            
             # Yağış miktarı grafiği oluşturulur.
-            ax3.bar(zaman, yagis_x, width=.01, label="Yağış Miktarı (mm)")
+            ax3.bar(veriZamani, yagisFark, label="Yağış Miktarı (mm)", width=.01, align="edge")
             ax3.set_ylabel("Yağış Miktarı (mm)")
             ax3.grid(True)
             ax3.legend()
-
+            ax3 = ax3.twinx()
+            ax3.bar(toplamYagis.keys(), toplamYagis.values(), label="Toplam Yağış Miktarı (mm)", alpha=0.4, width=1, align="edge")
             # Basınç grafiği oluşturulur.
-            ax4.plot(zaman, basinc, label="Basınç (mb)")
+            ax4.plot(veriZamani, denizeIndirgenmisBasinc, label="Basınç (mb)")
             ax4.set_ylabel("Basınç (mb)")
             ax4.grid(True)
             ax4.legend()
-
             # Rüzgar hızı grafiği oluşturulur.
-            ax5.plot(zaman, rüzgar_hiz, label="Rüzgar Hızı (km/h)")
+            ax5.plot(veriZamani, ruzgarHiz, label="Rüzgar Hızı (km/h)")
             ax5.set_ylabel("Rüzgar Hızı (km/h)")
             ax5.grid(True)
-            ax5.legend()
-            
+            ax5.legend()     
             # Grafik ekseni ile ilgili kullanılabilecek kodlar:
             """
             plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H:%M') #%d/%m/%Y  
@@ -318,28 +259,28 @@ class instant:
             f.gca().xaxis.set_major_locator(locator)
             f.gca().xaxis.set_major_formatter(formatter)
             f.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
-
-            #plt.tight_layout(h_pad=0)
-            
-            #f.set_xlabel("Zaman")
-            #plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
-            #plt.autoscale()
-            #plt.gca().yaxis.set_major_locator(ticker.MultipleLocator(5))
-
+            f.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
+            plt.xlabel("Zaman")
             #ax = f.add_subplot(1, 1, 1, projection="windrose") 
-            
             # Oluşturulan figür pdf dosyası olarak kaydedilir.
-            plt.tight_layout()
-            plt.savefig(dir + "meteogram.pdf", format='pdf', dpi=300)
-            plt.close()
-
-            ax = WindroseAxes.from_ax()
-            ax.bar(rüzgar_yön, rüzgar_hiz)
-            ax.set_legend()
-            plt.savefig(dir + "windrose.pdf", format="pdf", dpi=300)
-            plt.close()
+            f.tight_layout()
+            f.savefig(dir + "meteogram.pdf", format='pdf', dpi=300)
+            plt.close(f)
         except:
-            logging.warning(f"{self.il}/{self.ilce} meteogramı çizilirken bir hata meydana geldi. Dosya konumu: {dir}")
+            logging.error(f"{self.il}/{self.ilce} meteogramı çizilirken bir hata meydana geldi. Dosya konumu: {dir}")
+        try:
+            # Windrose grafiği çizilir.
+            fig = plt.figure(figsize=(8,8))
+            rect = [0.1, 0.1, 0.8, 0.8]
+            ax = WindroseAxes(fig, rect)
+            fig.add_axes(ax)
+            ax.bar(ruzgarYon, ruzgarHiz)
+            ax.set_legend()
+            fig.set_in_layout(False)
+            fig.savefig(dir + "windrose.pdf", format="pdf", dpi=300)
+            plt.close(fig)
+        except:
+            logging.error(f"{self.il}/{self.ilce} windrose grafiği çizilirken bir hata meydana geldi. Dosya konumu: {dir}")
 
 # Günlük tahmin verileri için:
 class dailyForecast:
@@ -366,182 +307,125 @@ class dailyForecast:
                 params = {'istno': self.district[self.il][self.ilce]['gunlukTahminIstNo']}
             headers = {"Origin": "https://www.mgm.gov.tr/"}
             request = session.get(url, params=params, headers=headers)
-            json = request.json()
-            json = json[0]
-            return json
+            response = request.json()
+            response = response[0]
+            return response
         except:
-            logging.warning(f"{self.il}/{self.ilce} günlük tahmin verileri istenirken bir hata meydana geldi.")
+            logging.error(f"{self.il}/{self.ilce} günlük tahmin verileri istenirken bir hata meydana geldi.")
     
     def check(self):
         try:
             self.dailyForecastData = self.request()
-            self.veriZamani = timezoneConverter(datetime.strptime(self.dailyForecastData["tarihGun1"],"%Y-%m-%dT%H:%M:%S.%fZ")) - timedelta(days=1)
-            self.yayinTarih = format(self.veriZamani, "%d/%m/%Y")
-            self.yayinSaat = format(self.veriZamani, "%H:%M:%S")
+            self.veriZamani = datetime.strptime(self.dailyForecastData["tarihGun1"],"%Y-%m-%dT%H:%M:%S.%fZ") 
+            self.zamanKontrol = format(datetime.now(), "%Y-%m-%dT%H:%M:%S.%fZ")
 
             dir = f"work/{self.il}/{self.ilce}/"
             if os.path.exists(dir) == False:
                     os.makedirs(dir)
             vt = sqlite3.connect(dir + 'data.db')
             im = vt.cursor()
-
-            command = f"""CREATE TABLE IF NOT EXISTS dailyForecast
-            (İl, İlçe, İstasyonNumarası, YayınTarihi, YayınSaati, Tarih, Saat, Hadise, MinSıcaklık, MaxSıcaklık, MinNem, MaxNem, RüzgarYönü, RüzgarHızı)"""
-            im.execute(command)
-
-            command = f"""SELECT YayınTarihi, YayınSaati FROM dailyForecast WHERE YayınTarihi='{self.yayinTarih}' AND YayınSaati='{self.yayinSaat}'"""
-            self.sonVeri = im.execute(command).fetchall()
-            if self.sonVeri != []:
-                vt.commit()
-                vt.close()
-            return self.sonVeri
+            im.execute("CREATE TABLE IF NOT EXISTS dailyForecast (baslangicZamani, {})".format(", ".join([f"{key}" for key in self.dailyForecastData.keys()])))
+            sonVeri = im.execute("SELECT tarihGun1 FROM dailyForecast WHERE tarihGun1='{}'".format(self.dailyForecastData["tarihGun1"])).fetchall()
+            vt.commit()
+            vt.close()
+            return sonVeri
         except:
-            logging.warning(f"{self.il}{self.ilce} günlük tahmin verileri kontrol edilirken bir hata meydana geldi.")
+            logging.error(f"{self.il}{self.ilce} günlük tahmin verileri kontrol edilirken bir hata meydana geldi.")
     
     def sql(self):
         try:
-            self.check()
-            if self.sonVeri == []:
-                dir_list = [
-                    f"work/{self.il}/{self.ilce}/",
-                    f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/",
-                    f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/{self.veriZamani.month}/",
-                    f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/{self.veriZamani.month}/{self.veriZamani.day}/"
-                ]
+            sonVeri = self.check()
+            dir_list = [
+            f"work/{self.il}/{self.ilce}/",
+            f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/",
+            f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/{self.veriZamani.month}/",
+            f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/{self.veriZamani.month}/{self.veriZamani.day}/"
+        ]
+            if sonVeri == []:
                 for dir in dir_list:
                     if os.path.exists(dir) == False:
                         os.makedirs(dir)
                     vt = sqlite3.connect(dir + 'data.db')
                     im = vt.cursor()
-
-                    command = f"""CREATE TABLE IF NOT EXISTS dailyForecast
-                    (İl, İlçe, İstasyonNumarası, YayınTarihi, YayınSaati, Tarih, Saat, Hadise, MinSıcaklık, MaxSıcaklık, MinNem, MaxNem, RüzgarYönü, RüzgarHızı)"""
-                    im.execute(command)
-
-                    for gun in ["1", "2", "3", "4", "5"]:
-                        veriZamani = timezoneConverter(
-                            datetime.strptime(self.dailyForecastData["tarihGun" + gun],
-                                            "%Y-%m-%dT%H:%M:%S.%fZ"))
-                        tarih = format(veriZamani, "%d/%m/%Y")
-                        saat = format(veriZamani, "%H:%M:%S")
-
-                        row = [
-                            self.il, self.ilce, self.dailyForecastData['istNo'], self.yayinTarih, self.yayinSaat, tarih,
-                            saat, self.dailyForecastData['hadiseGun' + gun],
-                            self.dailyForecastData['enDusukGun' + gun],
-                            self.dailyForecastData['enYuksekGun' + gun],
-                            self.dailyForecastData['enDusukNemGun' + gun],
-                            self.dailyForecastData['enYuksekNemGun' + gun],
-                            self.dailyForecastData['ruzgarYonGun' + gun],
-                            self.dailyForecastData['ruzgarHizGun' + gun]
-                        ]
-                        mark = "?" * len(row)
-                        comma = ","
-                        mark = comma.join(mark)
-                        newRow = f"""INSERT INTO dailyForecast VALUES ({mark})"""
-                        im.execute(newRow, row)
+                    im.execute("CREATE TABLE IF NOT EXISTS dailyForecast (baslangicZamani, {})".format(", ".join([f"{key}" for key in self.dailyForecastData.keys()])))
+                    a = [self.zamanKontrol]
+                    [a.append(values) for values in self.dailyForecastData.values()]
+                    im.execute("INSERT INTO dailyForecast (baslangicZamani, {}) VALUES ({})".format(", ".join(self.dailyForecastData.keys()), ", ".join(["?" for _ in range(len(self.dailyForecastData)+1)])), a)
                     vt.commit()
                     vt.close()
                     for limit in ["Minimum", "Maksimum"]:
                         self.graph(dir, limit)
         except:
-            logging.warning(f"{self.il}/{self.ilce} günlük tahmin verileri veri tabanına yazılırken bir hata meydana geldi.")
-    
+            logging.error(f"{self.il}/{self.ilce} günlük tahmin verileri veri tabanına yazılırken bir hata meydana geldi.")
+                
     def graph(self, dir, limit):
         try:
             if os.path.exists(dir) == False:
                 os.makedirs(dir)
             vt = sqlite3.connect(dir + 'data.db')
             im = vt.cursor()
-
-            command = """SELECT Tarih, MIN(Sıcaklık), MAX(Sıcaklık) FROM instantData GROUP BY Tarih"""
-            data = im.execute(command).fetchall()
-
-            x = []
-            y = []
-
-            for row in data:
-                gün, ay, yıl = row[0].split("/")
-                x.append(datetime(int(yıl), int(ay), int(gün)))
-                if limit == "Minimum":
-                    y.append(row[1])
-                elif limit == "Maksimum":
-                    y.append(row[2])
+            saat = []
+            xy = {}
+            if limit == "Minimum":
+                data = im.execute("SELECT veriZamani, min(sicaklik) FROM instantData WHERE veriZamani BETWEEN strftime('%Y-%m-%dT18:00:00', veriZamani, '-1 day') AND strftime('%Y-%m-%dT06:00:00', veriZamani) GROUP BY strftime('%Y-%m-%d', veriZamani)").fetchall()
+            if limit == "Maksimum":
+                data = im.execute("SELECT veriZamani, max(sicaklik) FROM instantData WHERE time(veriZamani) BETWEEN '06:00:00' AND '18:00:00' GROUP BY date(veriZamani)").fetchall()
+            for row in data: 
+                xy.setdefault(datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S.%fZ").date(), row[1])
+                saat.append(datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S.%fZ"))
             
-            f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, 1, figsize=(20,20), sharex=True) 
-            main_title = f"""
+            for number in [1,5]:
+                f, axs = plt.subplots(number, 1, figsize=(20,20), sharex=True, sharey=True)
+                main_title = f"""
                 {self.il} {self.ilce}
                 {limit} Sıcaklık
                 """
-            plt.suptitle(main_title, fontsize= 20, fontweight='bold')
+                plt.suptitle(main_title, fontsize= 20, fontweight='bold')
+                if number==1:
+                    axs.plot(xy.keys(), xy.values(), "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
+                    sozluk = {1 : axs, 2 : axs, 3 : axs, 4 : axs, 5 : axs}
+                else:
+                    sozluk = {}
+                    for gun, ax in enumerate(axs):
+                        ax.plot(xy.keys(), xy.values(), "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
+                        sozluk.setdefault(gun+1, ax)
+   
+                for gun, ax in sozluk.items():
+                    liste = [f"tarihGun{gun}", f"enDusukGun{gun}", f"enYuksekGun{gun}"]
+                    data = im.execute("SELECT {},{},{} FROM dailyForecast".format(liste[0], liste[1], liste[2])).fetchall()
+                    xy2 = {}
+                    for row in data:
+                        if limit == "Minimum":
+                            xy2.setdefault(datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S.%fZ"), row[1])
+                        elif limit == "Maksimum":
+                            xy2.setdefault(datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S.%fZ"), row[2])
+                    if number != 1:              
+                        left_title = f"""
+                        {gun}. Gün {limit} Sıcaklık Tahmini
+                        """                
+                        ax.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
+                    ax.plot(xy2.keys(), xy2.values(), alpha=0.6, label=f"{gun}. Gün Tahmini Sıcaklık (°C)")
+                    ax.set_ylabel("Sıcaklık (°C)")
+                    ax.grid(True)
+                    ax.legend()
+                    
+                    for i, j, k in zip(xy.keys(), xy.values(), saat):
+                        ax.annotate(format(k, "%H:%M"), xy=(i,j), xycoords='data', xytext=(-30,-30), textcoords='offset points',  bbox=dict(boxstyle="round4", fc="w"), arrowprops=dict(arrowstyle="-|>", connectionstyle="arc3,rad=-0.2", fc="w"))
 
-            for i in [1, 2, 3, 4, 5]:
-                command = f"""SELECT Tarih, MinSıcaklık, MaxSıcaklık FROM dailyForecast WHERE Tarih - YayınTarihi = {i}"""
-                data = im.execute(command).fetchall()
-
-                x2 = []
-                y2 = []
-                for row in data:
-                    gün, ay, yıl = row[0].split("/")
-                    x2.append(datetime(int(yıl), int(ay), int(gün)))
-                    if limit == "Minimum":
-                        y2.append(row[1])
-                    elif limit == "Maksimum":
-                        y2.append(row[2])
-                
-                left_title = f"""
-                {i}. Gün {limit} Sıcaklık Tahmini
-                """
-                if i==1:
-                    ax1.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
-                    ax1.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
-                    ax1.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
-                    ax1.set_ylabel("Sıcaklık (°C)")
-                    ax1.grid(True)
-                    ax1.legend()
-                elif i==2:
-                    ax2.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
-                    ax2.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
-                    ax2.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
-                    ax2.set_ylabel("Sıcaklık (°C)")
-                    ax2.grid(True)
-                    ax2.legend()
-                elif i==3:
-                    ax3.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
-                    ax3.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
-                    ax3.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
-                    ax3.set_ylabel("Sıcaklık (°C)")
-                    ax3.grid(True)
-                    ax3.legend()
-                elif i==4:
-                    ax4.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
-                    ax4.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
-                    ax4.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
-                    ax4.set_ylabel("Sıcaklık (°C)")
-                    ax4.grid(True)
-                    ax4.legend()
-                elif i==5:
-                    ax5.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
-                    ax5.plot(x, y, "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
-                    ax5.plot(x2, y2, alpha=0.6, label=f"{i}. Gün Tahmini Sıcaklık (°C)")
-                    ax5.set_ylabel("Sıcaklık (°C)")
-                    ax5.grid(True)
-                    ax5.legend()
-
-            plt.xlabel("Zaman")
-
-            locator = mdates.AutoDateLocator()
-            formatter = mdates.ConciseDateFormatter(locator)
-            plt.gca().xaxis.set_major_locator(locator)
-            plt.gca().xaxis.set_major_formatter(formatter)
-            #plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
-
-            plt.savefig(dir + f"{limit}.pdf", dpi=300)
-            plt.close()
+                locator = mdates.AutoDateLocator()
+                formatter = mdates.ConciseDateFormatter(locator)
+                plt.gca().xaxis.set_major_locator(locator)
+                plt.gca().xaxis.set_major_formatter(formatter)
+                plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+                plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
+                plt.xlabel("Zaman")
+                f.tight_layout()
+                plt.savefig(dir + f"{limit}_{number}.pdf", dpi=300)
+                plt.close(f)   
             vt.commit()
             vt.close()
         except:
-            logging.warning(f"{self.il} {self.ilce} {limit} grafiği çizilemedi. Dosya konumu: {dir}")
+            logging.error(f"{self.il} {self.ilce} {limit} grafiği çizilemedi. Dosya konumu: {dir}")
 
 # Saatlik tahmin verileri için:
 class hourlyForecast:
@@ -568,44 +452,34 @@ class hourlyForecast:
                 params = {'istno': self.district[self.il][self.ilce]['saatlikTahminIstNo']}
             headers = {"Origin": "https://www.mgm.gov.tr/"}
             request = session.get(url, params=params, headers=headers)
-            json = request.json()
-            json = json[0]
-            return json
+            response = request.json()
+            response = response[0]
+            return response
         except:
-            logging.warning(f"{self.il}/{self.ilce} saatlik tahmin verisi istenirken bir hata meydana geldi.")
+            logging.error(f"{self.il}/{self.ilce} saatlik tahmin verisi istenirken bir hata meydana geldi.")
 
     def check(self):
         try:
             self.hourlyForecastData = self.request()
-            self.veriZamani = timezoneConverter(datetime.strptime(self.hourlyForecastData['baslangicZamani'],"%Y-%m-%dT%H:%M:%S.%fZ"))
-            self.yayinTarih = format(self.veriZamani, "%d/%m/%Y")
-            self.yayinSaat = format(self.veriZamani, "%H:%M:%S")
-
+            self.veriZamani = datetime.strptime(self.hourlyForecastData['baslangicZamani'],"%Y-%m-%dT%H:%M:%S.%fZ")
+            #self.zamanKontrol = format(self.veriZamani, "%Y-%m-%dT%H:%M:%S.%fZ")
             dir = f"work/{self.il}/{self.ilce}/"
             if os.path.exists(dir) == False:
                 os.makedirs(dir)
             vt = sqlite3.connect(dir + 'data.db')
             im = vt.cursor()
-
-            command = f"""CREATE TABLE IF NOT EXISTS hourlyForecast
-            (İl, İlçe, İstasyonNumarası, YayınTarihi, YayınSaati, Tarih, BaşlangıçSaati, BitişSaati, BeklenenHadise, Sıcaklık, HissedilenSıcaklık, Nem, RüzgarYönü, OrtRüzgarHızı, MaksRüzgarHızı)"""
-            im.execute(command)
-
-            command = f"""SELECT YayınTarihi, YayınSaati FROM hourlyForecast 
-            WHERE YayınTarihi='{self.yayinTarih}' AND YayınSaati='{self.yayinSaat}'"""
-            self.sonVeri = im.execute(command).fetchall()
-            if self.sonVeri != []:
-                vt.commit()
-                vt.close()
-
-            return self.sonVeri
+            im.execute("CREATE TABLE IF NOT EXISTS hourlyForecast (baslangicZamani, istNo, merkez, {})".format(", ".join([f"{key}" for key in self.hourlyForecastData["tahmin"][0].keys()])))
+            sonVeri = im.execute("SELECT baslangicZamani FROM hourlyForecast WHERE baslangicZamani='{}'".format(self.hourlyForecastData["baslangicZamani"])).fetchall()
+            vt.commit()
+            vt.close()
+            return sonVeri
         except:
-            logging.warning(f"{self.il}/{self.ilce} saatlik tahmin verisi kontrol edilirken bir hata meydana geldi.")
+            logging.error(f"{self.il}/{self.ilce} saatlik tahmin verisi kontrol edilirken bir hata meydana geldi.")
 
     def sql(self):
         try:
-            self.check()
-            if self.sonVeri == []:
+            sonVeri = self.check()
+            if sonVeri == []:
                 dir_list = [
                     f"work/{self.il}/{self.ilce}/",
                     f"work/{self.il}/{self.ilce}/{self.veriZamani.year}/",
@@ -614,43 +488,85 @@ class hourlyForecast:
                 ]
                 for dir in dir_list:
                     if os.path.exists(dir) == False:
-                        os.makedirs(dir)
+                        os.makedirs(dir)  
                     vt = sqlite3.connect(dir + 'data.db')
                     im = vt.cursor()
-
-                    command = f"""CREATE TABLE IF NOT EXISTS hourlyForecast
-                    (İl, İlçe, İstasyonNumarası, YayınTarihi, YayınSaati, Tarih, BaşlangıçSaati, BitişSaati, BeklenenHadise, Sıcaklık, HissedilenSıcaklık, Nem, RüzgarYönü, OrtRüzgarHızı, MaksRüzgarHızı)"""
-
-                    im.execute(command)
-
-                    for hourlyForecast in self.hourlyForecastData["tahmin"]:
-                        self.veriZamani = timezoneConverter(datetime.strptime(hourlyForecast['tarih'],"%Y-%m-%dT%H:%M:%S.%fZ"))
-                        self.tarih = format(self.veriZamani, "%d/%m/%Y")
-                        self.baslangicSaat = format(self.veriZamani - timedelta(hours=3), "%H:%M:%S")
-                        self.bitisSaat = format(self.veriZamani, "%H:%M:%S")
-                        row = [
-                            self.il, self.ilce, self.hourlyForecastData['istNo'], self.yayinTarih, self.yayinSaat,
-                            self.tarih, self.baslangicSaat, self.bitisSaat, hourlyForecast['hadise'],
-                            hourlyForecast['sicaklik'], hourlyForecast['hissedilenSicaklik'],
-                            hourlyForecast['nem'], hourlyForecast['ruzgarYonu'],
-                            hourlyForecast['ruzgarHizi'], hourlyForecast['maksimumRuzgarHizi']
-                        ]
-                        mark = "?" * len(row)
-                        comma = ","
-                        mark = comma.join(mark)
-                        newRow = f"""INSERT INTO hourlyForecast VALUES ({mark})"""
-
-                        im.execute(newRow, row)
-
+                    im.execute("CREATE TABLE IF NOT EXISTS hourlyForecast (baslangicZamani, istNo, merkez, {})".format(", ".join([f"{key}" for key in self.hourlyForecastData["tahmin"][0].keys()])))
+                    for index in range(len(self.hourlyForecastData["tahmin"])):
+                        a = [self.hourlyForecastData["baslangicZamani"], self.hourlyForecastData["istNo"], self.hourlyForecastData["merkez"]]
+                        [a.append(values) for values in self.hourlyForecastData["tahmin"][index].values()]
+                        im.execute("INSERT INTO hourlyForecast (baslangicZamani, istNo, merkez, {}) VALUES ({})".format(", ".join(self.hourlyForecastData["tahmin"][index].keys()), ", ".join(["?" for _ in range(len(self.hourlyForecastData["tahmin"][index])+3)])), a)
                     vt.commit()
                     vt.close()
-                    self.graph()
+                    #self.graph()
         except:
-            logging.warning(f"{self.il}/{self.ilce} saatlik tahmin verileri veri tabanına eklenirken bir hata meydana geldi.")
+            logging.error(f"{self.il}/{self.ilce} saatlik tahmin verileri veri tabanına eklenirken bir hata meydana geldi.")
 
-    def graph(self):
-        pass
+    def graph(self, dir):
+         # dir yolu mevcut değilse oluşturulur.
+            if os.path.exists(dir) == False:
+                os.makedirs(dir)
+            # Veri tabanı dosyasına bağlanılır.
+            vt = sqlite3.connect(dir + 'data.db')
+            im = vt.cursor()
+            # Veriler bir değişkene atanır.
+            datas = im.execute("""SELECT baslangicZamani FROM hourlyForecast GROUP BY strftime('%Y-%m-%d', baslangicZamani)""").fetchall()
+            # Veri tabanı dosyası kapatılır.
+            f, axs = plt.subplots(3, 1, figsize=(20,20), sharex=True)
+            title = f"""
+            METEOGRAM
 
+            - {str(self.il +' '+self.ilce)} -
+            ({self.district[self.il][self.ilce]['sondurumIstNo']})
+            """
+            plt.suptitle(title, fontsize= 20, fontweight='bold')
+            # Grafik sol başlığı oluşturulur.
+            left_title = f"""
+            {self.district[self.il][self.ilce]['enlem']}N      {self.district[self.il][self.ilce]['boylam']}E
+            Rakım:  {self.district[self.il][self.ilce]['yukseklik']}m
+            """
+            axs[0].set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
+            # Grafik sağ başlığı oluşturulur.
+            # ---
+            for data in datas:
+                for number, tahmin in enumerate(data):
+                    print(tahmin)
+                    veriler = im.execute("SELECT baslangicZamani, tarih, sicaklik, nem, ruzgarYonu, ruzgarHizi FROM hourlyForecast WHERE baslangicZamani = '{}'".format(tahmin)).fetchall()
+                
+                    baslangicZamani = []
+                    tarih = []
+                    sicaklik = []
+                    nem = []
+                    ruzgarYon = []
+                    ruzgarHiz = []
+                    print(veriler[0])
+                    for row in veriler:
+                        baslangicZamani.append(datetime.strptime(row[0], "%Y-%m-%dT%H:%M:%S.%fZ"))
+
+                        #tarih.append(datetime.strptime(row[1], "%Y-%m-%dT%H:%M:%S.%fZ") - timedelta(hours=-3))
+                        tarih.append(datetime.strptime(row[1], "%Y-%m-%dT%H:%M:%S.%fZ"))
+
+                        #sicaklik.append(float(row[2]))
+                        sicaklik.append(float(row[2]))
+
+                        #nem.append(float(row[3]))
+                        nem.append(float(row[3]))
+
+                        #ruzgarYon.append(float(row[4]))
+                        ruzgarYon.append(float(row[4]))
+
+                        #ruzgarHiz.append(float(row[5]))
+                        ruzgarHiz.append(float(row[5]))
+
+                    axs[0].plot(tarih, sicaklik, label="Tahmini Sıcaklık (°C)")
+                    axs[0].legend()
+                    axs[1].plot(tarih, nem, label="Tahmini Bağıl Nem (%)")
+                    axs[1].legend()
+                    #axs[1].fill_between(tarih, nem, alpha=0.2)
+                    axs[2].plot(tarih, ruzgarHiz, label="Tahmini Rüzgar Hızı (km/h)")
+                    axs[2].legend()
+                
+                    plt.savefig(dir + f"{number}.pdf", dpi=300)
 
 province = get_provinceInfo()
 district = get_districtInfo()
@@ -667,6 +583,10 @@ workspace = {
     "Osmaniye" : None,
     "Rize" : None
 }
+
+# TEST KODU
+#anlik = instant("Samsun", "Atakum")
+#anlik.graph("work/Samsun/Atakum/")
 
 keep_alive()
 while 1:
