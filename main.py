@@ -20,7 +20,7 @@ import locale
 #plt.style.use('ggplot')
 #plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.cm.Dark2.colors)
 
-locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
+#locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
 # log dosyası oluşturulur.
 logging.basicConfig(filename='.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 
@@ -210,7 +210,7 @@ class instant:
             left_title = f"{self.district[self.il][self.ilce]['enlem']}N      {self.district[self.il][self.ilce]['boylam']}E\nRakım:  {self.district[self.il][self.ilce]['yukseklik']}m"
             ax1.set_title(left_title, loc='left', fontsize= 18, fontstyle="italic")
             # Grafik sağ başlığı oluşturulur.
-            right_title = f"Başlangıç Tarihi:  {str(format(veriZamani[0], '%d %B %Y %A'))}\nBitiş Tarihi:  {str(format(veriZamani[-1], '%d %B %Y %A'))}"
+            right_title = f"Başlangıç Tarihi:  {str(format(veriZamani[0], '%d %B %Y %A %H:%M'))}\nBitiş Tarihi:  {str(format(veriZamani[-1], '%d %B %Y %A %H:%M'))}"
             ax1.set_title(right_title, loc='right', fontsize= 18, fontstyle="italic")
             # Sıcaklık grafikleri oluşturulur.
             ax1.plot(veriZamani, sicaklik, "r-", label="Hava Sıcaklığı (°C)")
@@ -252,7 +252,7 @@ class instant:
             formatter = mdates.ConciseDateFormatter(locator)
             f.gca().xaxis.set_major_locator(locator)
             f.gca().xaxis.set_major_formatter(formatter)
-            f.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+            f.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=3)) #interval=1
             f.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
             plt.xlabel("Zaman")
             #ax = f.add_subplot(1, 1, 1, projection="windrose") 
@@ -347,7 +347,7 @@ class dailyForecast:
                     im.execute("INSERT INTO dailyForecast (baslangicZamani, {}) VALUES ({})".format(", ".join(self.dailyForecastData.keys()), ", ".join(["?" for _ in range(len(self.dailyForecastData)+1)])), a)
                     vt.commit()
                     vt.close()
-                    for limit in ["Minimum", "Maksimum"]:
+                    for limit in ["Minimum", "Maksimum", "Minimum ve Maksimum"]:
                         self.graph(dir, limit)
         except:
             logging.error(f"{self.il}/{self.ilce} günlük tahmin verileri veri tabanına yazılırken bir hata meydana geldi.")
@@ -377,7 +377,7 @@ class dailyForecast:
                         minSaat.append(timezoneConverter(datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S.%fZ")))
 
                 for number in [1,5]:
-                    f, axs = plt.subplots(number, 1, figsize=(20,20), sharex=True, sharey=True)
+                    f, axs = plt.subplots(number, 1, figsize=(20,20), sharex=True)
                     main_title = f"{self.il} {self.ilce}\n({self.district[self.il][self.ilce]['sondurumIstNo']})\n{limit} Sıcaklık"
                     f.suptitle(main_title, fontsize= 20, fontweight='bold')
                     if number==1:
@@ -417,10 +417,10 @@ class dailyForecast:
                                 xy2min.setdefault(timezoneConverter(datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S.%fZ")).date(), row[1])
                         if number == 1:
                             if limit == "Maksimum":
-                                right_title = f"Başlangıç Tarihi:  {str(format(xymax.keys()[0], '%d %B %Y %A'))}\nBitiş Tarihi:  {str(format(xymax.keys()[-1], '%d %B %Y %A'))}"                
+                                right_title = f"Başlangıç Tarihi:  {str(format(list(xymax.keys())[0], '%d %B %Y %A'))}\nBitiş Tarihi:  {str(format(list(xymax.keys())[-1], '%d %B %Y %A'))}"                
                                 ax.set_title(right_title, loc='right', fontsize= 18, fontstyle="italic")
                             if limit == "Minimum":
-                                right_title = f"Başlangıç Tarihi:  {str(format(xymin.keys()[0], '%d %B %Y %A'))}\nBitiş Tarihi:  {str(format(xymin.keys()[-1], '%d %B %Y %A'))}"                
+                                right_title = f"Başlangıç Tarihi:  {str(format(list(xymin.keys())[0], '%d %B %Y %A'))}\nBitiş Tarihi:  {str(format(list(xymin.keys())[-1], '%d %B %Y %A'))}"                
                                 ax.set_title(right_title, loc='right', fontsize= 18, fontstyle="italic")
                         if number != 1:              
                             left_title = f"{gun}. Gün {limit} Sıcaklık Tahmini"                
@@ -490,7 +490,7 @@ class dailyForecast:
                     formatter = mdates.ConciseDateFormatter(locator)
                     plt.gca().xaxis.set_major_locator(locator)
                     plt.gca().xaxis.set_major_formatter(formatter)
-                    plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+                    plt.gca().xaxis.set_minor_locator(mdates.HourLocator(interval=3)) #interval=1
                     plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
                     plt.xlabel("Zaman")
                     f.tight_layout()
@@ -668,11 +668,7 @@ workspace = {
     "Samsun" : None,
     "Amasya" : None,
     "Ordu" : None,
-    "Sinop" : None,
-    "İstanbul" : "Arnavutköy",
-    "Kahramanmaraş" : "Elbistan",
-    "Osmaniye" : None,
-    "Rize" : None
+    "Sinop" : None
 }
 
 ## TEST KODU
@@ -680,8 +676,8 @@ workspace = {
 #anlik.graph("work/Samsun/Atakum/")
 #saatlik = hourlyForecast("Samsun", "Atakum")
 #saatlik.sql()
-#günlük = dailyForecast("Samsun", "Atakum")
-#günlük.graph("work/Samsun/Atakum/", "Minimum")
+# günlük = dailyForecast("Samsun", "Atakum")
+# günlük.graph("work/Samsun/Atakum/", "Minimum ve Maksimum")
 #günlük.graph("work/Samsun/Atakum/", "Maksimum ve Minimum")
 
 while 1:
