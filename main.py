@@ -16,6 +16,7 @@ import logging
 import sqlite3
 import os
 import locale
+import numpy as np
 
 #plt.style.use('ggplot')
 #plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.cm.Dark2.colors)
@@ -386,6 +387,14 @@ class dailyForecast:
                             axs.plot(xymax.keys(), xymax.values(), "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
                         if limit=="Minimum":
                             axs.plot(xymin.keys(), xymin.values(), "r-", linewidth=2, alpha=0.8, label="Ölçülen Sıcaklık (°C)")
+                            # # Trend çizgisini hesaplama
+                            # tarihler_num = mdates.date2num(list(xymin.keys()))
+                            # trend_katsayıları = np.polyfit(tarihler_num, list(xymin.values()), 1) # Birinci dereceden polinom
+                            # trend = np.poly1d(trend_katsayıları)
+                            # trend_x = list(xymin.keys()) # Trend çizgisinin x değerleri
+                            # trend_y = trend(tarihler_num) # Trend çizgisinin y değerleri
+                            # # Trend çizgisini çizdirme
+                            # axs.plot(trend_x, trend_y, '-', label='Trend')
                         if limit == "Minimum ve Maksimum":
                                 axs.bar(xymax.keys(), xymax.values(), label="Ölçülen Maksimum Sıcaklık (°C)")    
                                 axs.bar(xymin.keys(), xymin.values(), label="Ölçülen Minimum Sıcaklık (°C)")
@@ -677,7 +686,7 @@ workspace = {
 #saatlik = hourlyForecast("Samsun", "Atakum")
 #saatlik.sql()
 # günlük = dailyForecast("Samsun", "Atakum")
-# günlük.graph("work/Samsun/Atakum/", "Minimum ve Maksimum")
+# günlük.graph("work/Samsun/Atakum/", "Minimum")
 #günlük.graph("work/Samsun/Atakum/", "Maksimum ve Minimum")
 
 while 1:
